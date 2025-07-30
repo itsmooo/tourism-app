@@ -15,6 +15,11 @@ const UserSchema = new mongoose.Schema({
         lowercase: true,
         trim: true
     },
+    full_name: {
+        type: String,
+        required: false,
+        trim: true
+    },
     password: {
         type: String,
         required: true
@@ -24,6 +29,10 @@ const UserSchema = new mongoose.Schema({
         enum: ['tourist', 'admin'],
         default: 'tourist'
     },
+    favorites: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Place'
+    }],
     createdAt: {
         type: Date,
         default: Date.now

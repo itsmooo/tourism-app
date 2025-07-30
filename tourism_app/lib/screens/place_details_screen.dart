@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tourism_app/providers/language_provider.dart';
+import 'package:tourism_app/providers/favorites_provider.dart';
 import 'package:tourism_app/providers/auth_provider.dart';
 import 'package:tourism_app/services/database_helper.dart';
 import 'package:tourism_app/utils/app_colors.dart';
-// import 'package:tourism_app/widgets/language_toggle.dart';
-// import 'package:cached_network_image/cached_network_image.dart';
 import 'package:tourism_app/providers/user_behavior_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:ui';
+import 'dart:async';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:tourism_app/screens/dashboard/dashboard_screen.dart';
 
 class PlaceDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> place;
@@ -28,10 +31,11 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
   final PageController _imagePageController = PageController();
 
   bool _isFavorite = false;
-  bool _isLoading = false; // Added missing variable
+  bool _isLoading = false;
   late DateTime _enterTime;
   UserBehaviorProvider? _userBehaviorProvider;
   int _currentImageIndex = 0;
+  Timer? _autoScrollTimer;
 
   late AnimationController _animationController;
   late AnimationController _favoriteAnimationController;
@@ -73,15 +77,25 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
     _enterTime = DateTime.now();
     // Initialize image gallery with the place's image and related images
     _imageGallery = _getPlaceImages(widget.place['image_path']);
-    print('Place: ${widget.place['name_eng']}');
-    print('Original image path: ${widget.place['image_path']}');
-    print('Image gallery: $_imageGallery');
-
-    // Test if the main image exists
-    _testImageExists(widget.place['image_path']);
 
     _checkFavoriteStatus();
     _setupAnimations();
+    _startAutoScroll();
+  }
+
+  void _startAutoScroll() {
+    if (_imageGallery.length > 1) {
+      _autoScrollTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+        if (mounted && _imagePageController.hasClients) {
+          final nextIndex = (_currentImageIndex + 1) % _imageGallery.length;
+          _imagePageController.animateToPage(
+            nextIndex,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
+    }
   }
 
   List<String> _getPlaceImages(String mainImagePath) {
@@ -99,7 +113,7 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
     List<String> extensions = ['.png', '.jpg', '.jpeg'];
     for (int i = 2; i <= 4; i++) {
       for (String ext in extensions) {
-        String variation = 'assets/places/${baseName}$i$ext';
+        String variation = 'assets/places/$baseName$i$ext';
         if (_imageExists(variation)) {
           images.add(variation);
           break; // Found one variation, move to next number
@@ -156,14 +170,6 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
         path.contains('dayniile.png');
   }
 
-  void _testImageExists(String imagePath) {
-    String fullPath = imagePath.startsWith('assets/')
-        ? imagePath
-        : 'assets/places/$imagePath';
-    print('Testing image path: $fullPath');
-    // This will help us debug which images are actually loading
-  }
-
   void _setupAnimations() {
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1000),
@@ -211,6 +217,7 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
   void dispose() {
     final seconds = DateTime.now().difference(_enterTime).inSeconds.toDouble();
     _userBehaviorProvider?.recordViewTime(seconds, notify: false);
+    _autoScrollTimer?.cancel();
     _animationController.dispose();
     _favoriteAnimationController.dispose();
     _fabAnimationController.dispose();
@@ -219,18 +226,19 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
   }
 
   Future<void> _checkFavoriteStatus() async {
-    final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
-    if (user != null && user['_id'] != null) {
+    final favoritesProvider =
+        Provider.of<FavoritesProvider>(context, listen: false);
+    final placeId =
+        widget.place['_id']?.toString() ?? widget.place['id']?.toString() ?? '';
+
+    if (placeId.isNotEmpty) {
       try {
-        final isFavorite = await _dbHelper.isPlaceFavorite(
-          user['_id'],
-          widget.place['id'],
-        );
+        final isFavorite = await favoritesProvider.checkFavoriteStatus(placeId);
         if (mounted) {
           setState(() => _isFavorite = isFavorite);
         }
       } catch (e) {
-        print('Error checking favorite status: $e');
+        // Handle error silently
       }
     }
   }
@@ -239,26 +247,69 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
     if (_isLoading) return;
 
     setState(() => _isLoading = true);
+    _favoriteAnimationController.forward().then((_) {
+      _favoriteAnimationController.reverse();
+    });
 
-    final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
-    if (user != null && user['_id'] != null) {
+    final favoritesProvider =
+        Provider.of<FavoritesProvider>(context, listen: false);
+    final placeId =
+        widget.place['_id']?.toString() ?? widget.place['id']?.toString() ?? '';
+
+    if (placeId.isNotEmpty) {
       try {
-        if (_isFavorite) {
-          await _dbHelper.removeFromFavorites(user['_id'], widget.place['id']);
-        } else {
-          await _dbHelper.addToFavorites(user['_id'], widget.place['id']);
-        }
+        final success =
+            await favoritesProvider.toggleFavorite(placeId, widget.place);
 
-        if (mounted) {
+        if (mounted && success) {
           setState(() {
             _isFavorite = !_isFavorite;
             _isLoading = false;
           });
+
+          // Show feedback
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(
+                    _isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(_isFavorite
+                      ? 'Added to favorites!'
+                      : 'Removed from favorites!'),
+                ],
+              ),
+              backgroundColor: _isFavorite ? Colors.red : Colors.grey[600],
+              behavior: SnackBarBehavior.fixed,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        } else if (mounted) {
+          setState(() => _isLoading = false);
         }
       } catch (e) {
         print('Error toggling favorite: $e');
         if (mounted) {
           setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.error, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('Failed to update favorites'),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.fixed,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          );
         }
       }
     } else {
@@ -297,7 +348,7 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.image_not_supported,
                                   color: Colors.white,
                                   size: 60,
@@ -393,46 +444,11 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
                   ],
                 ),
                 child: IconButton(
-                  icon: Icon(Icons.arrow_back, color: AppColors.primary),
+                  icon: const Icon(Icons.arrow_back, color: AppColors.primary),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
               actions: [
-                Container(
-                  margin: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.share, color: Colors.grey),
-                    onPressed: () {
-                      // Share functionality
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Row(
-                            children: [
-                              Icon(Icons.share, color: Colors.white),
-                              SizedBox(width: 12),
-                              Text('Shared successfully!'),
-                            ],
-                          ),
-                          backgroundColor: Colors.green,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                      );
-                    },
-                  ),
-                ),
                 Container(
                   margin: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
@@ -476,8 +492,6 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
                             _imageGallery[index],
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
-                              print(
-                                  'Image error for ${_imageGallery[index]}: $error');
                               return Container(
                                 color: Colors.grey[200],
                                 child: Center(
@@ -647,15 +661,15 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Row(
+                        content: const Row(
                           children: [
-                            const Icon(Icons.directions, color: Colors.white),
-                            const SizedBox(width: 12),
-                            const Text('Opening directions...'),
+                            Icon(Icons.directions, color: Colors.white),
+                            SizedBox(width: 12),
+                            Text('Opening directions...'),
                           ],
                         ),
                         backgroundColor: Colors.blue,
-                        behavior: SnackBarBehavior.floating,
+                        behavior: SnackBarBehavior.fixed,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
@@ -708,7 +722,8 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.location_on, color: AppColors.primary, size: 20),
+                  const Icon(Icons.location_on,
+                      color: AppColors.primary, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -825,8 +840,8 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
                   color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child:
-                    Icon(Icons.description, color: AppColors.primary, size: 20),
+                child: const Icon(Icons.description,
+                    color: AppColors.primary, size: 20),
               ),
               const SizedBox(width: 12),
               Text(
@@ -1230,59 +1245,772 @@ class _PlaceDetailsScreenState extends State<PlaceDetailsScreen>
   void _showBookingDialog() {
     showDialog(
       context: context,
+      builder: (context) => BookingDialog(place: widget.place),
+    );
+  }
+}
+
+class BookingDialog extends StatefulWidget {
+  final Map<String, dynamic> place;
+
+  const BookingDialog({Key? key, required this.place}) : super(key: key);
+
+  @override
+  State<BookingDialog> createState() => _BookingDialogState();
+}
+
+class _BookingDialogState extends State<BookingDialog> {
+  DateTime? _selectedDate;
+  String? _selectedTimeSlot;
+  int _visitorCount = 1;
+  final String _contactName = '';
+  final String _contactPhone = '';
+  final String _contactEmail = '';
+  bool _isLoading = false;
+
+  final List<String> _timeSlots = [
+    '09:00 AM - 11:00 AM',
+    '11:00 AM - 01:00 PM',
+    '01:00 PM - 03:00 PM',
+    '03:00 PM - 05:00 PM',
+    '05:00 PM - 07:00 PM',
+  ];
+
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+  Future<void> _confirmBooking() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedDate == null) {
+      _showErrorSnackBar('Please select a date');
+      return;
+    }
+    if (_selectedTimeSlot == null) {
+      _showErrorSnackBar('Please select a time slot');
+      return;
+    }
+
+    // Check visitor count against max capacity
+    final maxCapacity = widget.place['maxCapacity'] ?? 20;
+    if (_visitorCount > maxCapacity) {
+      _showErrorSnackBar(
+          'Visitor count exceeds maximum capacity of $maxCapacity');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Get current user
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (!authProvider.isAuthenticated) {
+        _showErrorSnackBar('Please login to make a booking');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final user = authProvider.currentUser;
+      // Ensure minimum price per person to avoid validation errors
+      final pricePerPerson = (widget.place['pricePerPerson'] ?? 5.0).toDouble();
+      final totalAmount = pricePerPerson * _visitorCount;
+
+      // Validate totalAmount before sending
+      if (totalAmount <= 0) {
+        _showErrorSnackBar('Invalid booking amount. Please contact support.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Prepare payment data
+      final paymentData = {
+        'userId': user?['_id'] ?? user?['id'],
+        'userFullName': _nameController.text.trim(),
+        'userAccountNo': _phoneController.text.trim(),
+        'placeId': widget.place['_id'] ?? widget.place['id'],
+        'bookingDate': _selectedDate!.toIso8601String(),
+        'timeSlot': _selectedTimeSlot,
+        'visitorCount': _visitorCount,
+        'pricePerPerson': pricePerPerson,
+        'totalAmount': totalAmount,
+        'contactInfo': {
+          'email': _emailController.text.trim(),
+          'phone': _phoneController.text.trim(),
+        }
+      };
+
+      // Process payment
+      final response = await http.post(
+        Uri.parse('http://localhost:9000/api/payments'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(paymentData),
+      );
+
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 201 && responseData['success']) {
+        // Payment successful
+        if (mounted) {
+          setState(() => _isLoading = false);
+          Navigator.pop(context);
+
+          // Show success dialog with payment receipt
+          _showPaymentSuccessDialog(responseData['data'], totalAmount);
+        }
+      } else {
+        // Payment failed
+        final errorMessage = responseData['message'] ?? 'Payment failed';
+        _showErrorSnackBar(errorMessage);
+        setState(() => _isLoading = false);
+      }
+    } catch (error) {
+      print('Payment error: $error');
+      _showErrorSnackBar('Network error. Please check your connection.');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showPaymentSuccessDialog(
+      Map<String, dynamic> paymentData, double totalAmount) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.calendar_today, color: AppColors.primary),
-            const SizedBox(width: 12),
-            const Text('Book Your Visit'),
-          ],
-        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-                'Select your preferred date and time for visiting this place.'),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle,
+                color: Colors.green,
+                size: 60,
+              ),
+            ),
             const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.white),
-                        const SizedBox(width: 12),
-                        const Text('Booking confirmed!'),
-                      ],
+            Text(
+              'Payment Successful!',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Payment Receipt',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
                     ),
-                    backgroundColor: Colors.green,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
                   ),
-                );
-              },
-              icon: const Icon(Icons.calendar_today, color: Colors.white),
-              label: const Text('Select Date',
-                  style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  const Divider(),
+                  _buildReceiptRow('Place:', widget.place['name_eng']),
+                  _buildReceiptRow('Date:',
+                      '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'),
+                  _buildReceiptRow('Time:', _selectedTimeSlot ?? ''),
+                  _buildReceiptRow('Visitors:', _visitorCount.toString()),
+                  _buildReceiptRow(
+                      'Total Amount:', '\$${totalAmount.toStringAsFixed(2)}'),
+                  _buildReceiptRow('Paid Amount:', '\$0.01 (Test)',
+                      isHighlight: true),
+                  _buildReceiptRow('Status:', 'Confirmed', isHighlight: true),
+                ],
               ),
             ),
           ],
         ),
         actions: [
           TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Navigate to payments tab
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      const DashboardScreen(initialIndex: 2), // Payments tab
+                ),
+              );
+            },
+            child: Text(
+              'View Payment History',
+              style: GoogleFonts.poppins(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              'Done',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptRow(String label, String value,
+      {bool isHighlight = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: isHighlight ? FontWeight.bold : FontWeight.normal,
+              color: isHighlight ? AppColors.primary : Colors.black,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white),
+            const SizedBox(width: 12),
+            Text(message),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.fixed,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 600, maxWidth: 400),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today,
+                      color: AppColors.primary, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Book Your Visit',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Place Info
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(
+                                  image: AssetImage(widget.place['image_path']
+                                          .startsWith('assets/')
+                                      ? widget.place['image_path']
+                                      : 'assets/places/${widget.place['image_path']}'),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.place['name_eng'] ?? 'Unknown Place',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  Text(
+                                    widget.place['location'] ??
+                                        'Unknown Location',
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Date Selection
+                      Text(
+                        'Select Date',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: _selectDate,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today,
+                                  color: AppColors.primary),
+                              const SizedBox(width: 12),
+                              Text(
+                                _selectedDate == null
+                                    ? 'Choose your visit date'
+                                    : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                                style: GoogleFonts.poppins(
+                                  color: _selectedDate == null
+                                      ? Colors.grey[600]
+                                      : Colors.black,
+                                ),
+                              ),
+                              const Spacer(),
+                              const Icon(Icons.arrow_forward_ios, size: 16),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Time Slot Selection
+                      Text(
+                        'Select Time Slot',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _timeSlots.map((slot) {
+                          final isSelected = _selectedTimeSlot == slot;
+                          return InkWell(
+                            onTap: () =>
+                                setState(() => _selectedTimeSlot = slot),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : Colors.white,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : Colors.grey[300]!,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                slot,
+                                style: GoogleFonts.poppins(
+                                  color:
+                                      isSelected ? Colors.white : Colors.black,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Visitor Count
+                      Text(
+                        'Number of Visitors',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: _visitorCount > 1
+                                ? () => setState(() => _visitorCount--)
+                                : null,
+                            icon: const Icon(Icons.remove_circle_outline),
+                            color: AppColors.primary,
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 8),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              _visitorCount.toString(),
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _visitorCount <
+                                    (widget.place['maxCapacity'] ?? 20)
+                                ? () => setState(() => _visitorCount++)
+                                : null,
+                            icon: const Icon(Icons.add_circle_outline),
+                            color: AppColors.primary,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Cost Summary
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: AppColors.primary.withOpacity(0.2)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Booking Summary',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Price per person:',
+                                  style: GoogleFonts.poppins(fontSize: 14),
+                                ),
+                                Text(
+                                  '\$${(widget.place['pricePerPerson'] ?? 5.0).toStringAsFixed(2)}',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Number of visitors:',
+                                  style: GoogleFonts.poppins(fontSize: 14),
+                                ),
+                                Text(
+                                  _visitorCount.toString(),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Total Amount:',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                Text(
+                                  '\$${((widget.place['pricePerPerson'] ?? 5.0) * _visitorCount).toStringAsFixed(2)}',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Test payment: \$0.01 (for demo purposes)',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.orange[700],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Contact Information
+                      Text(
+                        'Contact Information',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Full Name',
+                          prefixIcon: const Icon(Icons.person),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your name';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _phoneController,
+                        decoration: InputDecoration(
+                          labelText: 'Phone Number',
+                          prefixIcon: const Icon(Icons.phone),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your phone number';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          labelText: 'Email Address',
+                          prefixIcon: const Icon(Icons.email),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your email';
+                          }
+                          if (!value.contains('@')) {
+                            return 'Please enter a valid email';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Footer
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: GoogleFonts.poppins(
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _confirmBooking,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              'Confirm Booking',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

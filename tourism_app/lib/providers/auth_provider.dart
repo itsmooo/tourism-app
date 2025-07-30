@@ -36,11 +36,11 @@ class AuthProvider with ChangeNotifier {
           .timeout(const Duration(seconds: 10));
 
       print('Login response status: ${response.statusCode}');
-      print('Login response body: ${response.body}');
+      // print('Login response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
-        print('Parsed response data: $responseData');
+        // print('Parsed response data: $responseData');
 
         // Check if token exists in response
         if (responseData['token'] == null) {
@@ -61,7 +61,7 @@ class AuthProvider with ChangeNotifier {
         return true;
       } else {
         print('Login failed with status: ${response.statusCode}');
-        print('Error response: ${response.body}');
+        // print('Error response: ${response.body}');
         _isLoading = false;
         notifyListeners();
         return false;
@@ -125,7 +125,7 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> updateProfile(String email, String fullName) async {
+  Future<bool> updateProfile(String email, String fullName, String username) async {
     if (_currentUser == null) return false;
 
     _isLoading = true;
@@ -145,6 +145,7 @@ class AuthProvider with ChangeNotifier {
         body: jsonEncode({
           'email': email,
           'full_name': fullName,
+          'username': username,
         }),
       );
 
@@ -189,7 +190,7 @@ class AuthProvider with ChangeNotifier {
         ).timeout(const Duration(seconds: 5));
 
         print('Verify response status: ${response.statusCode}');
-        print('Verify response body: ${response.body}');
+        // print('Verify response body: ${response.body}');
 
         if (response.statusCode == 200) {
           _currentUser = jsonDecode(userString);
