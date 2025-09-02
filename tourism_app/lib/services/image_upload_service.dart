@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ImageUploadService {
-  static const String baseUrl = 'http://localhost:9000/api/places';
+  static const String baseUrl =
+      'https://tourism-app-ruddy.vercel.app/api/places';
 
   // Upload a single image
   static Future<Map<String, dynamic>?> uploadImage(File imageFile) async {

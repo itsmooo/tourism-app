@@ -2,7 +2,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class PaymentService {
-  static const String baseUrl = 'http://localhost:9000/api/payments';
+  static const String baseUrl =
+      'https://tourism-app-ruddy.vercel.app/api/payments';
 
   /// Create a payment for place booking
   static Future<Map<String, dynamic>> createPayment({
@@ -34,11 +35,14 @@ class PaymentService {
       // Check if response is HTML (server error page)
       final contentType = response.headers['content-type'] ?? '';
       if (contentType.contains('text/html')) {
-        print('❌ Server returned HTML instead of JSON. Status: ${response.statusCode}');
-        print('Response body: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}...');
+        print(
+            '❌ Server returned HTML instead of JSON. Status: ${response.statusCode}');
+        print(
+            'Response body: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}...');
         return {
           'success': false,
-          'message': 'Server is not responding correctly. Please ensure the backend server is running on port 9000.',
+          'message':
+              'Server is not responding correctly. Please ensure the backend server is running on port 9000.',
           'error': 'Server returned HTML instead of JSON',
         };
       }
@@ -72,19 +76,21 @@ class PaymentService {
       }
     } catch (e) {
       print('❌ Payment creation error: $e');
-      
+
       // Check for specific timeout errors
-      if (e.toString().contains('timeout') || e.toString().contains('TimeoutException')) {
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('TimeoutException')) {
         return {
           'success': false,
           'message': 'Payment service timeout. Server is not responding.',
           'error': e.toString(),
         };
       }
-      
+
       return {
         'success': false,
-        'message': 'Network error. Please check your connection and ensure the backend server is running.',
+        'message':
+            'Network error. Please check your connection and ensure the backend server is running.',
         'error': e.toString(),
       };
     }
@@ -107,10 +113,12 @@ class PaymentService {
       // Check if response is HTML (server error page)
       final contentType = response.headers['content-type'] ?? '';
       if (contentType.contains('text/html')) {
-        print('❌ Server returned HTML instead of JSON. Status: ${response.statusCode}');
+        print(
+            '❌ Server returned HTML instead of JSON. Status: ${response.statusCode}');
         return {
           'success': false,
-          'message': 'Server is not responding correctly. Please ensure the backend server is running on port 9000.',
+          'message':
+              'Server is not responding correctly. Please ensure the backend server is running on port 9000.',
         };
       }
 
@@ -134,20 +142,23 @@ class PaymentService {
       } else {
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Failed to load payment history',
+          'message':
+              responseData['message'] ?? 'Failed to load payment history',
         };
       }
     } catch (e) {
       print('❌ Payment history error: $e');
       return {
         'success': false,
-        'message': 'Network error. Please check your connection and ensure the backend server is running.',
+        'message':
+            'Network error. Please check your connection and ensure the backend server is running.',
       };
     }
   }
 
   /// Get payment details by ID
-  static Future<Map<String, dynamic>> getPaymentDetails(String paymentId) async {
+  static Future<Map<String, dynamic>> getPaymentDetails(
+      String paymentId) async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/$paymentId'),
@@ -159,10 +170,12 @@ class PaymentService {
       // Check if response is HTML (server error page)
       final contentType = response.headers['content-type'] ?? '';
       if (contentType.contains('text/html')) {
-        print('❌ Server returned HTML instead of JSON. Status: ${response.statusCode}');
+        print(
+            '❌ Server returned HTML instead of JSON. Status: ${response.statusCode}');
         return {
           'success': false,
-          'message': 'Server is not responding correctly. Please ensure the backend server is running on port 9000.',
+          'message':
+              'Server is not responding correctly. Please ensure the backend server is running on port 9000.',
         };
       }
 
@@ -186,14 +199,16 @@ class PaymentService {
       } else {
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Failed to load payment details',
+          'message':
+              responseData['message'] ?? 'Failed to load payment details',
         };
       }
     } catch (e) {
       print('❌ Payment details error: $e');
       return {
         'success': false,
-        'message': 'Network error. Please check your connection and ensure the backend server is running.',
+        'message':
+            'Network error. Please check your connection and ensure the backend server is running.',
       };
     }
   }
@@ -211,10 +226,12 @@ class PaymentService {
       // Check if response is HTML (server error page)
       final contentType = response.headers['content-type'] ?? '';
       if (contentType.contains('text/html')) {
-        print('❌ Server returned HTML instead of JSON. Status: ${response.statusCode}');
+        print(
+            '❌ Server returned HTML instead of JSON. Status: ${response.statusCode}');
         return {
           'success': false,
-          'message': 'Server is not responding correctly. Please ensure the backend server is running on port 9000.',
+          'message':
+              'Server is not responding correctly. Please ensure the backend server is running on port 9000.',
         };
       }
 
@@ -245,7 +262,8 @@ class PaymentService {
       print('❌ Payment cancellation error: $e');
       return {
         'success': false,
-        'message': 'Network error. Please check your connection and ensure the backend server is running.',
+        'message':
+            'Network error. Please check your connection and ensure the backend server is running.',
       };
     }
   }

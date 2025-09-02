@@ -2,7 +2,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class BookingService {
-  static const String baseUrl = 'http://localhost:9000/api/bookings';
+  static const String baseUrl =
+      'https://tourism-app-ruddy.vercel.app/api/bookings';
 
   /// Create a new booking with optional payment info
   static Future<Map<String, dynamic>> createBooking({

@@ -494,7 +494,7 @@ export function BookingsSection() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-600">Total Price</Label>
-                  <p className="text-gray-900 font-medium text-blue-600">{formatCurrency(viewingBooking.totalPrice)}</p>
+                  <p className="text-gray-900 font-medium">{formatCurrency(viewingBooking.totalPrice)}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-600">Status</Label>

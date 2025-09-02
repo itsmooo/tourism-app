@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 import { apiService } from "@/lib/api-service";
+import { env } from "@/lib/env";
 
 const AuthContext = createContext();
 
@@ -31,7 +32,7 @@ export const AuthProvider = ({ children }) => {
 
   const verifyToken = async (tokenToVerify) => {
     try {
-      const response = await fetch("http://localhost:9000/api/auth/verify", {
+      const response = await fetch(`${env.api.baseUrl}/auth/verify`, {
         headers: {
           Authorization: `Bearer ${tokenToVerify}`,
         },
@@ -69,7 +70,7 @@ export const AuthProvider = ({ children }) => {
       
       console.log('🔐 Sending login data:', loginData);
       
-      const response = await fetch("http://localhost:9000/api/auth/login", {
+      const response = await fetch(`${env.api.baseUrl}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

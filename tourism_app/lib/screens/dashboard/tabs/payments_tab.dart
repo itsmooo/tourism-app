@@ -38,7 +38,8 @@ class _PaymentsTabState extends State<PaymentsTab> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+    if (_scrollController.position.pixels ==
+        _scrollController.position.maxScrollExtent) {
       if (_hasMoreData && !_isLoading) {
         _loadMorePayments();
       }
@@ -54,7 +55,8 @@ class _PaymentsTabState extends State<PaymentsTab> {
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (!authProvider.isAuthenticated) {
-        final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+        final languageProvider =
+            Provider.of<LanguageProvider>(context, listen: false);
         setState(() {
           _error = languageProvider.getText('please_login_payment_history');
           _isLoading = false;
@@ -68,10 +70,11 @@ class _PaymentsTabState extends State<PaymentsTab> {
       // Try real API first, fallback to mock service if it fails
       Map<String, dynamic> responseData;
       bool usedMockService = false;
-      
+
       try {
         final response = await http.get(
-          Uri.parse('http://localhost:9000/api/payments/history/$userId?page=1&limit=10'),
+          Uri.parse(
+              'https://tourism-app-ruddy.vercel.app/api/payments/history/$userId?page=1&limit=10'),
           headers: {
             'Content-Type': 'application/json',
           },
@@ -95,14 +98,14 @@ class _PaymentsTabState extends State<PaymentsTab> {
         }
       } catch (e) {
         print('Real payment history API failed, using mock service: $e');
-        
+
         // Use mock service as fallback
         final mockResult = await MockPaymentService.getPaymentHistory(
           userId: userId,
           page: 1,
           limit: 10,
         );
-        
+
         if (mockResult['success']) {
           responseData = mockResult;
           usedMockService = true;
@@ -113,30 +116,36 @@ class _PaymentsTabState extends State<PaymentsTab> {
 
       if (responseData['success']) {
         setState(() {
-          _payments = List<Map<String, dynamic>>.from(responseData['data']['payments']);
-          _hasMoreData = responseData['data']['currentPage'] < responseData['data']['totalPages'];
+          _payments =
+              List<Map<String, dynamic>>.from(responseData['data']['payments']);
+          _hasMoreData = responseData['data']['currentPage'] <
+              responseData['data']['totalPages'];
           _isLoading = false;
         });
-        
+
         // Show info message if using mock service
         if (usedMockService && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Using offline demo mode - showing mock payment history'),
+              content: Text(
+                  'Using offline demo mode - showing mock payment history'),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 3),
             ),
           );
         }
       } else {
-        final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+        final languageProvider =
+            Provider.of<LanguageProvider>(context, listen: false);
         setState(() {
-          _error = responseData['message'] ?? languageProvider.getText('failed_load_payment_history');
+          _error = responseData['message'] ??
+              languageProvider.getText('failed_load_payment_history');
           _isLoading = false;
         });
       }
     } catch (error) {
-      final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+      final languageProvider =
+          Provider.of<LanguageProvider>(context, listen: false);
       setState(() {
         _error = languageProvider.getText('network_error_check_connection');
         _isLoading = false;
@@ -154,10 +163,11 @@ class _PaymentsTabState extends State<PaymentsTab> {
 
       // Try real API first, fallback to mock service if it fails
       Map<String, dynamic> responseData;
-      
+
       try {
         final response = await http.get(
-          Uri.parse('http://localhost:9000/api/payments/history/$userId?page=${_currentPage + 1}&limit=10'),
+          Uri.parse(
+              'https://tourism-app-ruddy.vercel.app/api/payments/history/$userId?page=${_currentPage + 1}&limit=10'),
           headers: {
             'Content-Type': 'application/json',
           },
@@ -186,7 +196,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
           page: _currentPage + 1,
           limit: 10,
         );
-        
+
         if (mockResult['success']) {
           responseData = mockResult;
         } else {
@@ -197,9 +207,11 @@ class _PaymentsTabState extends State<PaymentsTab> {
 
       if (responseData['success']) {
         setState(() {
-          _payments.addAll(List<Map<String, dynamic>>.from(responseData['data']['payments']));
+          _payments.addAll(List<Map<String, dynamic>>.from(
+              responseData['data']['payments']));
           _currentPage++;
-          _hasMoreData = responseData['data']['currentPage'] < responseData['data']['totalPages'];
+          _hasMoreData = responseData['data']['currentPage'] <
+              responseData['data']['totalPages'];
           _isLoading = false;
         });
       } else {
@@ -300,7 +312,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
 
   Widget _buildContent() {
     final languageProvider = Provider.of<LanguageProvider>(context);
-    
+
     if (_isLoading && _payments.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -440,7 +452,9 @@ class _PaymentsTabState extends State<PaymentsTab> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          payment['placeName'] ?? Provider.of<LanguageProvider>(context).getText('unknown_place'),
+                          payment['placeName'] ??
+                              Provider.of<LanguageProvider>(context)
+                                  .getText('unknown_place'),
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -459,7 +473,8 @@ class _PaymentsTabState extends State<PaymentsTab> {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
@@ -484,7 +499,8 @@ class _PaymentsTabState extends State<PaymentsTab> {
                   Expanded(
                     child: _buildDetailItem(
                       Icons.people,
-                      Provider.of<LanguageProvider>(context).getText('visitors'),
+                      Provider.of<LanguageProvider>(context)
+                          .getText('visitors'),
                       '${payment['visitorCount']} ${Provider.of<LanguageProvider>(context).getText('people')}',
                     ),
                   ),
@@ -513,7 +529,8 @@ class _PaymentsTabState extends State<PaymentsTab> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          Provider.of<LanguageProvider>(context).getText('total_amount'),
+                          Provider.of<LanguageProvider>(context)
+                              .getText('total_amount'),
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -534,7 +551,8 @@ class _PaymentsTabState extends State<PaymentsTab> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          Provider.of<LanguageProvider>(context).getText('paid_amount'),
+                          Provider.of<LanguageProvider>(context)
+                              .getText('paid_amount'),
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             color: Colors.grey[500],
@@ -647,18 +665,48 @@ class _PaymentsTabState extends State<PaymentsTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow(Provider.of<LanguageProvider>(context).getText('place'), payment['placeName'] ?? 'N/A'),
-              _buildDetailRow(Provider.of<LanguageProvider>(context).getText('booking_date'), DateFormat('MMM dd, yyyy').format(DateTime.parse(payment['bookingDate']))),
-              _buildDetailRow(Provider.of<LanguageProvider>(context).getText('time_slot'), payment['timeSlot'] ?? 'N/A'),
-              _buildDetailRow(Provider.of<LanguageProvider>(context).getText('visitors'), '${payment['visitorCount']} ${Provider.of<LanguageProvider>(context).getText('people')}'),
-              _buildDetailRow(Provider.of<LanguageProvider>(context).getText('contact_name'), payment['userFullName'] ?? 'N/A'),
-              _buildDetailRow(Provider.of<LanguageProvider>(context).getText('phone'), payment['userAccountNo'] ?? 'N/A'),
-              _buildDetailRow(Provider.of<LanguageProvider>(context).getText('total_amount'), '\$${(payment['totalAmount'] ?? 0).toStringAsFixed(2)}'),
-              _buildDetailRow(Provider.of<LanguageProvider>(context).getText('paid_amount'), '\$${(payment['actualPaidAmount'] ?? 0).toStringAsFixed(2)} (Test)'),
-              _buildDetailRow(Provider.of<LanguageProvider>(context).getText('status'), payment['bookingStatus']?.toUpperCase() ?? 'PENDING'),
-              _buildDetailRow(Provider.of<LanguageProvider>(context).getText('payment_date'), DateFormat('MMM dd, yyyy • hh:mm a').format(DateTime.parse(payment['paidAt']))),
-              if (payment['waafiResponse'] != null && payment['waafiResponse']['transactionId'] != null)
-                _buildDetailRow(Provider.of<LanguageProvider>(context).getText('transaction_id'), payment['waafiResponse']['transactionId']),
+              _buildDetailRow(
+                  Provider.of<LanguageProvider>(context).getText('place'),
+                  payment['placeName'] ?? 'N/A'),
+              _buildDetailRow(
+                  Provider.of<LanguageProvider>(context)
+                      .getText('booking_date'),
+                  DateFormat('MMM dd, yyyy')
+                      .format(DateTime.parse(payment['bookingDate']))),
+              _buildDetailRow(
+                  Provider.of<LanguageProvider>(context).getText('time_slot'),
+                  payment['timeSlot'] ?? 'N/A'),
+              _buildDetailRow(
+                  Provider.of<LanguageProvider>(context).getText('visitors'),
+                  '${payment['visitorCount']} ${Provider.of<LanguageProvider>(context).getText('people')}'),
+              _buildDetailRow(
+                  Provider.of<LanguageProvider>(context)
+                      .getText('contact_name'),
+                  payment['userFullName'] ?? 'N/A'),
+              _buildDetailRow(
+                  Provider.of<LanguageProvider>(context).getText('phone'),
+                  payment['userAccountNo'] ?? 'N/A'),
+              _buildDetailRow(
+                  Provider.of<LanguageProvider>(context)
+                      .getText('total_amount'),
+                  '\$${(payment['totalAmount'] ?? 0).toStringAsFixed(2)}'),
+              _buildDetailRow(
+                  Provider.of<LanguageProvider>(context).getText('paid_amount'),
+                  '\$${(payment['actualPaidAmount'] ?? 0).toStringAsFixed(2)} (Test)'),
+              _buildDetailRow(
+                  Provider.of<LanguageProvider>(context).getText('status'),
+                  payment['bookingStatus']?.toUpperCase() ?? 'PENDING'),
+              _buildDetailRow(
+                  Provider.of<LanguageProvider>(context)
+                      .getText('payment_date'),
+                  DateFormat('MMM dd, yyyy • hh:mm a')
+                      .format(DateTime.parse(payment['paidAt']))),
+              if (payment['waafiResponse'] != null &&
+                  payment['waafiResponse']['transactionId'] != null)
+                _buildDetailRow(
+                    Provider.of<LanguageProvider>(context)
+                        .getText('transaction_id'),
+                    payment['waafiResponse']['transactionId']),
             ],
           ),
         ),

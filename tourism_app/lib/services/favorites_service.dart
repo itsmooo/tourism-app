@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FavoritesService {
-  static const String baseUrl = 'http://localhost:9000/api/favorites';
+  static const String baseUrl =
+      'https://tourism-app-ruddy.vercel.app/api/favorites';
 
   // Get authorization headers with token
   static Future<Map<String, String>> _getAuthHeaders() async {

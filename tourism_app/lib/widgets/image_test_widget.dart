@@ -20,7 +20,8 @@ class ImageTestWidget extends StatelessWidget {
               width: 200,
               height: 200,
               child: CachedNetworkImage(
-                imageUrl: 'http://localhost:9000/uploads/test.png',
+                imageUrl:
+                    'https://tourism-app-ruddy.vercel.app/uploads/test.png',
                 placeholder: (context, url) => Container(
                   color: Colors.grey[200],
                   child: const Center(

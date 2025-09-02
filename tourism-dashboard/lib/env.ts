@@ -2,7 +2,7 @@
 export const env = {
   // API Configuration
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9000/api',
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://tourism-app-ruddy.vercel.app/api',
     timeout: 10000,
   },
   

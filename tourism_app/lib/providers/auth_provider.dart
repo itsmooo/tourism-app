@@ -13,7 +13,8 @@ class AuthProvider with ChangeNotifier {
   Map<String, dynamic>? get currentUser => _currentUser;
 
   // Use localhost for web, 10.0.2.2 for Android emulator
-  static const String _baseUrl = 'http://localhost:9000/api/auth';
+  static const String _baseUrl =
+      'https://tourism-app-ruddy.vercel.app/api/auth';
 
   Future<bool> login(String usernameOrEmail, String password) async {
     _isLoading = true;
@@ -89,8 +90,7 @@ class AuthProvider with ChangeNotifier {
   String? _registrationError;
   String? get registrationError => _registrationError;
 
-  Future<bool> register(
-      String username, String password, String email) async {
+  Future<bool> register(String username, String password, String email) async {
     _isLoading = true;
     _registrationError = null;
     notifyListeners();
@@ -110,12 +110,12 @@ class AuthProvider with ChangeNotifier {
       if (response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
         _currentUser = responseData;
-        
+
         // Store user data in SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user', jsonEncode(responseData));
         await prefs.setString('token', responseData['token']);
-        
+
         _isLoading = false;
         notifyListeners();
         return true;
@@ -141,12 +141,12 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> logout() async {
     _currentUser = null;
-    
+
     // Clear stored user data
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user');
     await prefs.remove('token');
-    
+
     notifyListeners();
   }
 
@@ -196,9 +196,9 @@ class AuthProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
-      
+
       if (token == null) return false;
-      
+
       final response = await http.post(
         Uri.parse('$_baseUrl/refresh'),
         headers: {
@@ -206,7 +206,7 @@ class AuthProvider with ChangeNotifier {
           'Content-Type': 'application/json',
         },
       ).timeout(const Duration(seconds: 5));
-      
+
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         await prefs.setString('token', responseData['token']);
@@ -224,7 +224,7 @@ class AuthProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
-      
+
       if (token != null && _currentUser != null) {
         // Check if token is still valid
         final response = await http.get(
@@ -234,7 +234,7 @@ class AuthProvider with ChangeNotifier {
             'Content-Type': 'application/json',
           },
         ).timeout(const Duration(seconds: 3));
-        
+
         // If token is invalid or about to expire, refresh it
         if (response.statusCode == 401) {
           print('Token expired, refreshing...');
