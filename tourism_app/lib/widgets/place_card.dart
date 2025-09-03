@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:provider/provider.dart';
 import 'package:tourism_app/providers/auth_provider.dart';
 import 'package:tourism_app/providers/language_provider.dart';
@@ -28,11 +30,27 @@ class PlaceCard extends StatefulWidget {
 
 class _PlaceCardState extends State<PlaceCard> {
   bool _isLoading = false;
+  // Cache decoded base64 bytes per card to avoid re-decoding on rebuilds
+  Uint8List? _decodedBytes;
+  String? _decodedForPath;
 
   @override
   void initState() {
     super.initState();
     _checkFavoriteStatus();
+  }
+
+  @override
+  void didUpdateWidget(covariant PlaceCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset cache if image changes
+    final dynamic rawImagePath =
+        widget.place['image_url'] ?? widget.place['image_path'] ?? '';
+    final String imagePath = rawImagePath?.toString() ?? '';
+    if (imagePath != _decodedForPath) {
+      _decodedBytes = null;
+      _decodedForPath = null;
+    }
   }
 
   Future<void> _checkFavoriteStatus() async {
@@ -96,57 +114,54 @@ class _PlaceCardState extends State<PlaceCard> {
   }
 
   Widget _buildImage(String imagePath) {
+    print(
+        '🖼️ PlaceCard _buildImage called with: ${imagePath.length > 50 ? imagePath.substring(0, 50) + '...' : imagePath}');
     // Check if it's a data URL (base64 image from MongoDB)
-    if (imagePath.startsWith('data:')) {
-      return Image.network(
-        imagePath,
-        width: double.infinity,
-        height: 120,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            color: Colors.grey[200],
-            child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
-                    : null,
-                color: AppColors.primary,
-              ),
-            ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          print('❌ Data URL image error: $error');
-          return Container(
-            color: Colors.grey[200],
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.image_not_supported,
-                  color: Colors.grey[400],
-                  size: 30,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Image not available',
-                  style: GoogleFonts.poppins(
-                    color: Colors.grey[500],
-                    fontSize: 10,
+    if (imagePath.startsWith('data:image')) {
+      try {
+        if (_decodedBytes == null || _decodedForPath != imagePath) {
+          final String base64Data = imagePath.split(',').last;
+          _decodedBytes = base64Decode(base64Data);
+          _decodedForPath = imagePath;
+        }
+        return Image.memory(
+          _decodedBytes!,
+          width: double.infinity,
+          height: 120,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          errorBuilder: (context, error, stackTrace) {
+            print('❌ Base64 image error: $error');
+            return Container(
+              color: Colors.grey[200],
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey[400],
+                    size: 30,
                   ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
+                  const SizedBox(height: 4),
+                  Text(
+                    'Image not available',
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey[500],
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      } catch (e) {
+        print('❌ Failed to decode base64 image: $e');
+      }
     }
 
     // Handle regular HTTP URLs
-    if (imagePath.startsWith('http')) {
+    if (imagePath.isNotEmpty && imagePath.startsWith('http')) {
       return CachedNetworkImage(
         imageUrl: imagePath,
         width: double.infinity,
@@ -186,9 +201,12 @@ class _PlaceCardState extends State<PlaceCard> {
         },
       );
     } else {
-      // Handle local asset images
+      // Handle local asset images or empty paths
+      final String assetPath = imagePath.isEmpty
+          ? 'assets/places/placeholder.jpg'
+          : 'assets/places/$imagePath';
       return Image.asset(
-        'assets/places/$imagePath',
+        assetPath,
         width: double.infinity,
         height: 120,
         fit: BoxFit.cover,
@@ -224,9 +242,10 @@ class _PlaceCardState extends State<PlaceCard> {
         final languageProvider = Provider.of<LanguageProvider>(context);
         final category = widget.place['category'] ?? 'unknown';
 
-        // Use image_url if available, otherwise fall back to image_path
-        final imagePath =
-            widget.place['image_url'] ?? widget.place['image_path'];
+        // Use image_url if available, otherwise fall back to image_path, safely
+        final dynamic rawImagePath =
+            widget.place['image_url'] ?? widget.place['image_path'] ?? '';
+        final String imagePath = rawImagePath?.toString() ?? '';
 
         final name = languageProvider.currentLanguage == 'som'
             ? widget.place['name_som'] ?? widget.place['name_eng'] ?? 'Unknown'
@@ -254,11 +273,19 @@ class _PlaceCardState extends State<PlaceCard> {
               onTap: () {
                 // Record quick interaction with EnhancedUserBehaviorProvider
                 try {
-                  final placeId = widget.place['id']?.toString() ?? widget.place['_id']?.toString() ?? widget.place['name_eng']?.toString() ?? '';
-                  final category = widget.place['category']?.toString().toLowerCase() ?? 'unknown';
-                  Provider.of<EnhancedUserBehaviorProvider>(context, listen: false).recordQuickInteraction(placeId, category);
+                  final placeId = widget.place['id']?.toString() ??
+                      widget.place['_id']?.toString() ??
+                      widget.place['name_eng']?.toString() ??
+                      '';
+                  final category =
+                      widget.place['category']?.toString().toLowerCase() ??
+                          'unknown';
+                  Provider.of<EnhancedUserBehaviorProvider>(context,
+                          listen: false)
+                      .recordQuickInteraction(placeId, category);
                 } catch (e) {
-                  print('[PlaceCard Modern] Error recording quick interaction: $e');
+                  print(
+                      '[PlaceCard Modern] Error recording quick interaction: $e');
                 }
                 Navigator.push(
                   context,
@@ -348,7 +375,7 @@ class _PlaceCardState extends State<PlaceCard> {
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Text(
-                                languageProvider.getText(category) ,
+                                languageProvider.getText(category),
                                 style: TextStyle(
                                   color: AppColors.primary,
                                   fontSize: 13,
@@ -424,11 +451,22 @@ class _PlaceCardState extends State<PlaceCard> {
                             onPressed: () {
                               // Record quick interaction with EnhancedUserBehaviorProvider
                               try {
-                                final placeId = widget.place['id']?.toString() ?? widget.place['_id']?.toString() ?? widget.place['name_eng']?.toString() ?? '';
-                                final category = widget.place['category']?.toString().toLowerCase() ?? 'unknown';
-                                Provider.of<EnhancedUserBehaviorProvider>(context, listen: false).recordQuickInteraction(placeId, category);
+                                final placeId =
+                                    widget.place['id']?.toString() ??
+                                        widget.place['_id']?.toString() ??
+                                        widget.place['name_eng']?.toString() ??
+                                        '';
+                                final category = widget.place['category']
+                                        ?.toString()
+                                        .toLowerCase() ??
+                                    'unknown';
+                                Provider.of<EnhancedUserBehaviorProvider>(
+                                        context,
+                                        listen: false)
+                                    .recordQuickInteraction(placeId, category);
                               } catch (e) {
-                                print('[PlaceCard Modern] Error recording quick interaction: $e');
+                                print(
+                                    '[PlaceCard Modern] Error recording quick interaction: $e');
                               }
                               Navigator.push(
                                 context,
@@ -468,17 +506,23 @@ class _PlaceCardState extends State<PlaceCard> {
             onTap: () {
               // Record quick interaction with EnhancedUserBehaviorProvider
               try {
-                final placeId = widget.place['id']?.toString() ?? widget.place['_id']?.toString() ?? widget.place['name_eng']?.toString() ?? '';
-                final category = widget.place['category']?.toString().toLowerCase() ?? 'unknown';
-                Provider.of<EnhancedUserBehaviorProvider>(context, listen: false).recordQuickInteraction(placeId, category);
+                final placeId = widget.place['id']?.toString() ??
+                    widget.place['_id']?.toString() ??
+                    widget.place['name_eng']?.toString() ??
+                    '';
+                final category =
+                    widget.place['category']?.toString().toLowerCase() ??
+                        'unknown';
+                Provider.of<EnhancedUserBehaviorProvider>(context,
+                        listen: false)
+                    .recordQuickInteraction(placeId, category);
               } catch (e) {
                 print('[PlaceCard] Error recording quick interaction: $e');
               }
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      PlaceDetailsScreen(place: widget.place),
+                  builder: (context) => PlaceDetailsScreen(place: widget.place),
                 ),
               ).then((_) => {
                     widget.onFavoriteChanged(),
@@ -524,7 +568,7 @@ class _PlaceCardState extends State<PlaceCard> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              languageProvider.getText(category) ,
+                              languageProvider.getText(category),
                               style: TextStyle(
                                 color: AppColors.primary,
                                 fontSize: 12,
@@ -603,24 +647,33 @@ class _PlaceCardState extends State<PlaceCard> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () {
-                              // Record quick interaction with EnhancedUserBehaviorProvider
-                              try {
-                                final placeId = widget.place['id']?.toString() ?? widget.place['_id']?.toString() ?? widget.place['name_eng']?.toString() ?? '';
-                                final category = widget.place['category']?.toString().toLowerCase() ?? 'unknown';
-                                Provider.of<EnhancedUserBehaviorProvider>(context, listen: false).recordQuickInteraction(placeId, category);
-                              } catch (e) {
-                                print('[PlaceCard] Error recording quick interaction: $e');
-                              }
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      PlaceDetailsScreen(place: widget.place),
-                                ),
-                              ).then((_) => {
-                                    widget.onFavoriteChanged(),
-                                  });
-                            },
+                            // Record quick interaction with EnhancedUserBehaviorProvider
+                            try {
+                              final placeId = widget.place['id']?.toString() ??
+                                  widget.place['_id']?.toString() ??
+                                  widget.place['name_eng']?.toString() ??
+                                  '';
+                              final category = widget.place['category']
+                                      ?.toString()
+                                      .toLowerCase() ??
+                                  'unknown';
+                              Provider.of<EnhancedUserBehaviorProvider>(context,
+                                      listen: false)
+                                  .recordQuickInteraction(placeId, category);
+                            } catch (e) {
+                              print(
+                                  '[PlaceCard] Error recording quick interaction: $e');
+                            }
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    PlaceDetailsScreen(place: widget.place),
+                              ),
+                            ).then((_) => {
+                                  widget.onFavoriteChanged(),
+                                });
+                          },
                           child: Text(
                             languageProvider.getText('read_more'),
                             style: TextStyle(

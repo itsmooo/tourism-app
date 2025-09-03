@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -34,6 +36,9 @@ class _ModernPlaceCardState extends State<ModernPlaceCard>
   bool _isLoading = false;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
+  // Cache decoded base64 bytes to prevent repeated decoding
+  Uint8List? _decodedBytes;
+  String? _decodedForPath;
 
   @override
   void initState() {
@@ -50,6 +55,18 @@ class _ModernPlaceCardState extends State<ModernPlaceCard>
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+  }
+
+  @override
+  void didUpdateWidget(covariant ModernPlaceCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final dynamic rawImagePath =
+        widget.place['image_url'] ?? widget.place['image_path'] ?? '';
+    final String imagePath = rawImagePath?.toString() ?? '';
+    if (imagePath != _decodedForPath) {
+      _decodedBytes = null;
+      _decodedForPath = null;
+    }
   }
 
   @override
@@ -153,9 +170,14 @@ class _ModernPlaceCardState extends State<ModernPlaceCard>
 
     // Record quick interaction with EnhancedUserBehaviorProvider
     try {
-      final placeId = widget.place['id']?.toString() ?? widget.place['_id']?.toString() ?? widget.place['name_eng']?.toString() ?? '';
-      final category = widget.place['category']?.toString().toLowerCase() ?? 'unknown';
-      final enhancedBehaviorProvider = Provider.of<EnhancedUserBehaviorProvider>(context, listen: false);
+      final placeId = widget.place['id']?.toString() ??
+          widget.place['_id']?.toString() ??
+          widget.place['name_eng']?.toString() ??
+          '';
+      final category =
+          widget.place['category']?.toString().toLowerCase() ?? 'unknown';
+      final enhancedBehaviorProvider =
+          Provider.of<EnhancedUserBehaviorProvider>(context, listen: false);
       enhancedBehaviorProvider.recordQuickInteraction(placeId, category);
     } catch (e) {
       print('❌ Error recording quick interaction: $e');
@@ -181,9 +203,10 @@ class _ModernPlaceCardState extends State<ModernPlaceCard>
             ? favoritesProvider.isFavorite(widget.place['_id'])
             : false;
 
-        // Use image_url if available, otherwise fall back to image_path
-        final imagePath =
-            widget.place['image_url'] ?? widget.place['image_path'];
+        // Use image_url if available, otherwise fall back to image_path, safely
+        final dynamic rawImagePath =
+            widget.place['image_url'] ?? widget.place['image_path'] ?? '';
+        final String imagePath = rawImagePath?.toString() ?? '';
 
         final name = languageProvider.currentLanguage == 'som'
             ? widget.place['name_som'] ?? widget.place['name_eng'] ?? 'Unknown'
@@ -534,57 +557,54 @@ class _ModernPlaceCardState extends State<ModernPlaceCard>
   }
 
   Widget _buildImage(String imagePath) {
+    print(
+        '🖼️ ModernPlaceCard _buildImage called with: ${imagePath.length > 50 ? imagePath.substring(0, 50) + '...' : imagePath}');
     // Check if it's a data URL (base64 image from MongoDB)
-    if (imagePath.startsWith('data:')) {
-      return Image.network(
-        imagePath,
-        width: double.infinity,
-        height: 180,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            color: Colors.grey[200],
-            child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
-                    : null,
-                color: AppColors.primary,
-              ),
-            ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          print('❌ Data URL image error: $error');
-          return Container(
-            color: Colors.grey[200],
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.image_not_supported,
-                  color: Colors.grey[400],
-                  size: 40,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Image not available',
-                  style: GoogleFonts.poppins(
-                    color: Colors.grey[500],
-                    fontSize: 12,
+    if (imagePath.startsWith('data:image')) {
+      try {
+        if (_decodedBytes == null || _decodedForPath != imagePath) {
+          final String base64Data = imagePath.split(',').last;
+          _decodedBytes = base64Decode(base64Data);
+          _decodedForPath = imagePath;
+        }
+        return Image.memory(
+          _decodedBytes!,
+          width: double.infinity,
+          height: 180,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          errorBuilder: (context, error, stackTrace) {
+            print('❌ Base64 image error: $error');
+            return Container(
+              color: Colors.grey[200],
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey[400],
+                    size: 40,
                   ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
+                  const SizedBox(height: 8),
+                  Text(
+                    'Image not available',
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey[500],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      } catch (e) {
+        print('❌ Failed to decode base64 image: $e');
+      }
     }
 
     // Handle regular HTTP URLs
-    if (imagePath.startsWith('http')) {
+    if (imagePath.isNotEmpty && imagePath.startsWith('http')) {
       return CachedNetworkImage(
         imageUrl: imagePath,
         width: double.infinity,
@@ -624,9 +644,12 @@ class _ModernPlaceCardState extends State<ModernPlaceCard>
         },
       );
     } else {
-      // Handle local asset images
+      // Handle local asset images or empty paths
+      final String assetPath = imagePath.isEmpty
+          ? 'assets/places/placeholder.jpg'
+          : 'assets/places/$imagePath';
       return Image.asset(
-        'assets/places/$imagePath',
+        assetPath,
         width: double.infinity,
         height: 180,
         fit: BoxFit.cover,

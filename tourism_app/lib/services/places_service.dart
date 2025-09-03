@@ -44,14 +44,20 @@ class PlacesService {
           placeMap['location'] = placeMap['location']?.toString() ?? '';
 
           if (placeMap['image_data'] != null) {
-            // Use the base64 image data directly
-            placeMap['image_url'] = placeMap['image_data'].toString();
+            // Prefix base64 as a data URI so the UI can detect and render it
+            final String base64Data = placeMap['image_data'].toString();
+            // Default to jpeg; backend may return png as well but jpeg is common
+            placeMap['image_url'] = 'data:image/jpeg;base64,' + base64Data;
+            print('🖼️ Using base64 image for ${placeMap['name_eng']}');
           } else if (placeMap['image_path'] != null) {
             // Fallback to image_path if image_data is not available
             placeMap['image_url'] =
                 'https://tourism-app-ruddy.vercel.app/uploads/${placeMap['image_path'].toString()}';
+            print(
+                '🖼️ Using HTTP image for ${placeMap['name_eng']}: ${placeMap['image_url']}');
           } else {
             placeMap['image_url'] = '';
+            print('❌ No image data for ${placeMap['name_eng']}');
           }
           return placeMap;
         }).toList();
@@ -106,8 +112,8 @@ class PlacesService {
           placeMap['location'] = placeMap['location']?.toString() ?? '';
 
           if (placeMap['image_data'] != null) {
-            // Use the base64 image data directly
-            placeMap['image_url'] = placeMap['image_data'].toString();
+            final String base64Data = placeMap['image_data'].toString();
+            placeMap['image_url'] = 'data:image/jpeg;base64,' + base64Data;
           } else if (placeMap['image_path'] != null) {
             // Fallback to image_path if image_data is not available
             placeMap['image_url'] =
@@ -146,7 +152,8 @@ class PlacesService {
 
         // Use image_data from MongoDB
         if (place['image_data'] != null) {
-          place['image_url'] = place['image_data'].toString();
+          final String base64Data = place['image_data'].toString();
+          place['image_url'] = 'data:image/jpeg;base64,' + base64Data;
         } else if (place['image_path'] != null) {
           place['image_url'] =
               'https://tourism-app-ruddy.vercel.app/uploads/${place['image_path'].toString()}';
