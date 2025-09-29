@@ -10,12 +10,12 @@ class SmartChatService {
   static String? _apiKey;
 
   // Default API key - replace with your actual Gemini API key
-  static const String _defaultApiKey = 'AIzaSyBkmPBOnU2uOmuu0Fotj9QXcEKP2vo-GzI';
+  // TODO: Move this to environment variables or secure storage
+  static const String _defaultApiKey =
+      'AIzaSyCLSQHdOl8BlPNLlyr9-EOaRMOHDFYDMW0';
 
   // API configuration status
-  static final Map<String, bool> _apiStatus = {
-    'gemini': false,
-  };
+  static final Map<String, bool> _apiStatus = {'gemini': false};
 
   // Initialize with default API key
   static void initialize() {
@@ -31,7 +31,7 @@ class SmartChatService {
 
       _apiKey = geminiKey;
       _model = GenerativeModel(
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         apiKey: geminiKey,
         generationConfig: GenerationConfig(
           temperature: 0.7,
@@ -63,23 +63,29 @@ class SmartChatService {
 
   // Send message to Gemini AI with full context
   static Future<String> sendSmartMessage(
-      String message, String language, AuthProvider authProvider) async {
+    String message,
+    String language,
+    AuthProvider authProvider,
+  ) async {
     try {
       if (_model == null || _apiKey == null) {
+        print(
+          '❌ Gemini AI not initialized - model: $_model, apiKey: ${_apiKey != null}',
+        );
         return _getServiceUnavailableMessage(language);
       }
 
       // Check for user frustration first
       final isFrustrated = _detectFrustration(message);
-      
+
       // If user is frustrated, provide support contact information
       if (isFrustrated) {
         return _getFrustrationSupportMessage(language);
       }
-      
+
       // Detect the actual language of the user's message
       final detectedLanguage = _detectMessageLanguage(message);
-      
+
       // Use detected language if it differs from app language
       final responseLanguage = detectedLanguage ?? language;
 
@@ -90,15 +96,29 @@ class SmartChatService {
 
       // Build comprehensive context prompt with detected language
       final contextPrompt = _buildContextPrompt(
-        message, responseLanguage, userContext, placesContext, favoritesContext);
+        message,
+        responseLanguage,
+        userContext,
+        placesContext,
+        favoritesContext,
+      );
 
       print('🤖 Sending message to Gemini AI...');
-      print('🔍 Detected language: $detectedLanguage, App language: $language, Response language: $responseLanguage');
-      
-      // Send to Gemini AI
+      print(
+        '🔍 Detected language: $detectedLanguage, App language: $language, Response language: $responseLanguage',
+      );
+
+      // Send to Gemini AI with timeout
       final content = [Content.text(contextPrompt)];
-      final response = await _model!.generateContent(content);
-      
+      final response = await _model!.generateContent(content).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception(
+            'Request timeout - please check your internet connection',
+          );
+        },
+      );
+
       final aiResponse = response.text;
       if (aiResponse != null && aiResponse.isNotEmpty) {
         print('✅ Received response from Gemini AI');
@@ -109,52 +129,119 @@ class SmartChatService {
       }
     } catch (e) {
       print('❌ Error communicating with Gemini AI: $e');
-      return _getServiceUnavailableMessage(language);
+      print('❌ Error type: ${e.runtimeType}');
+
+      // Provide more specific error messages
+      String errorMessage = _getServiceUnavailableMessage(language);
+      if (e.toString().contains('timeout')) {
+        errorMessage = language == 'so'
+            ? 'Waqtiga la joogo ayaa dhammaaday. Fadlan internetka hubi oo mar kale isku day.'
+            : 'Request timed out. Please check your internet connection and try again.';
+      } else if (e.toString().contains('network') ||
+          e.toString().contains('connection')) {
+        errorMessage = language == 'so'
+            ? 'Qaladka shabakada. Fadlan internetka hubi.'
+            : 'Network error. Please check your internet connection.';
+      } else if (e.toString().contains('API key') ||
+          e.toString().contains('authentication')) {
+        errorMessage = language == 'so'
+            ? 'Qaladka API. Fadlan la xiriir taageerada: 619071794'
+            : 'API authentication error. Please contact support: 619071794';
+      }
+
+      return errorMessage;
     }
   }
 
   // Detect frustration in user message
   static bool _detectFrustration(String message) {
     final lowerMessage = message.toLowerCase();
-    
+
     // English frustration indicators
     final englishFrustrationWords = [
-      'frustrated', 'angry', 'annoyed', 'upset', 'mad', 'furious', 'irritated',
-      'stupid', 'useless', 'terrible', 'awful', 'horrible', 'worst', 'hate',
-      'sucks', 'damn', 'shit', 'fuck', 'wtf', 'omg', 'seriously', 'ridiculous',
-      'pathetic', 'garbage', 'trash', 'broken', 'doesn\'t work', 'not working',
-      'help me', 'i need help', 'this is not working', 'nothing works',
-      'give up', 'fed up', 'can\'t take', 'enough', 'tired of'
+      'frustrated',
+      'angry',
+      'annoyed',
+      'upset',
+      'mad',
+      'furious',
+      'irritated',
+      'stupid',
+      'useless',
+      'terrible',
+      'awful',
+      'horrible',
+      'worst',
+      'hate',
+      'sucks',
+      'damn',
+      'shit',
+      'fuck',
+      'wtf',
+      'omg',
+      'seriously',
+      'ridiculous',
+      'pathetic',
+      'garbage',
+      'trash',
+      'broken',
+      'doesn\'t work',
+      'not working',
+      'help me',
+      'i need help',
+      'this is not working',
+      'nothing works',
+      'give up',
+      'fed up',
+      'can\'t take',
+      'enough',
+      'tired of',
     ];
-    
+
     // Somali frustration indicators
     final somaliFrustrationWords = [
-      'cadhaysan', 'xanaaq', 'xumaan', 'nacayb', 'xun', 'dhibaato',
-      'mashquul', 'daal', 'daalan', 'ka daalay', 'waan ka daalay',
-      'ma shaqeynayo', 'khalad', 'qalad', 'xun', 'aan shaqeyn',
-      'i caawiyo', 'caawimaad', 'waan u baahanahay', 'ma fahmin'
+      'cadhaysan',
+      'xanaaq',
+      'xumaan',
+      'nacayb',
+      'xun',
+      'dhibaato',
+      'mashquul',
+      'daal',
+      'daalan',
+      'ka daalay',
+      'waan ka daalay',
+      'ma shaqeynayo',
+      'khalad',
+      'qalad',
+      'xun',
+      'aan shaqeyn',
+      'i caawiyo',
+      'caawimaad',
+      'waan u baahanahay',
+      'ma fahmin',
     ];
-    
+
     // Check for frustration words
     for (final word in englishFrustrationWords) {
       if (lowerMessage.contains(word)) {
         return true;
       }
     }
-    
+
     for (final word in somaliFrustrationWords) {
       if (lowerMessage.contains(word)) {
         return true;
       }
     }
-    
+
     // Check for excessive punctuation (signs of frustration)
-    if (RegExp(r'[!]{2,}').hasMatch(message) || 
+    if (RegExp(r'[!]{2,}').hasMatch(message) ||
         RegExp(r'[?]{2,}').hasMatch(message) ||
         message.toUpperCase() == message && message.length > 10) {
       return true;
     }
-    
+
     return false;
   }
 
@@ -162,67 +249,108 @@ class SmartChatService {
   static String? _detectMessageLanguage(String message) {
     // Convert message to lowercase for better detection
     final lowerMessage = message.toLowerCase();
-    
+
     // Common Somali words and patterns
     final somaliIndicators = [
       // Common Somali words
       'waa', 'baa', 'ayaa', 'oo', 'iyo', 'ama', 'laakiin', 'haddii', 'markii',
       'waxa', 'waxaa', 'maxaa', 'xaggee', 'goorma', 'sidee', 'yaa', 'kumee',
-      'halka', 'meesha', 'goobta', 'magaalada', 'dalka', 'somalia', 'soomaaliya',
+      'halka',
+      'meesha',
+      'goobta',
+      'magaalada',
+      'dalka',
+      'somalia',
+      'soomaaliya',
       'fadlan', 'mahadsanid', 'waan', 'kuma', 'maya', 'haa', 'saaxiib',
       // Tourism related Somali words
       'dalxiis', 'booqasho', 'meel', 'goob', 'magaalo', 'badda', 'buur',
-      'taariikh', 'dhaqan', 'cunto', 'hotel', 'guri', 'safar', 'socod'
+      'taariikh', 'dhaqan', 'cunto', 'hotel', 'guri', 'safar', 'socod',
     ];
-    
+
     // Common English words and patterns
     final englishIndicators = [
-      'the', 'and', 'or', 'but', 'if', 'when', 'where', 'what', 'how', 'who',
-      'can', 'could', 'would', 'should', 'will', 'have', 'has', 'had',
-      'is', 'are', 'was', 'were', 'be', 'been', 'being',
-      'place', 'places', 'visit', 'tourism', 'travel', 'hotel', 'restaurant',
-      'beach', 'mountain', 'city', 'country', 'somalia', 'somali'
+      'the',
+      'and',
+      'or',
+      'but',
+      'if',
+      'when',
+      'where',
+      'what',
+      'how',
+      'who',
+      'can',
+      'could',
+      'would',
+      'should',
+      'will',
+      'have',
+      'has',
+      'had',
+      'is',
+      'are',
+      'was',
+      'were',
+      'be',
+      'been',
+      'being',
+      'place',
+      'places',
+      'visit',
+      'tourism',
+      'travel',
+      'hotel',
+      'restaurant',
+      'beach',
+      'mountain',
+      'city',
+      'country',
+      'somalia',
+      'somali',
     ];
-    
+
     int somaliScore = 0;
     int englishScore = 0;
-    
+
     // Count Somali indicators
     for (final indicator in somaliIndicators) {
       if (lowerMessage.contains(indicator)) {
         somaliScore++;
       }
     }
-    
+
     // Count English indicators
     for (final indicator in englishIndicators) {
       if (lowerMessage.contains(indicator)) {
         englishScore++;
       }
     }
-    
+
     // Additional pattern checks
     // Somali often has double vowels and specific letter combinations
-    if (RegExp(r'[aeiou]{2,}').hasMatch(lowerMessage) || 
-        lowerMessage.contains('dh') || lowerMessage.contains('kh') || 
-        lowerMessage.contains('sh') || lowerMessage.contains('ch')) {
+    if (RegExp(r'[aeiou]{2,}').hasMatch(lowerMessage) ||
+        lowerMessage.contains('dh') ||
+        lowerMessage.contains('kh') ||
+        lowerMessage.contains('sh') ||
+        lowerMessage.contains('ch')) {
       somaliScore++;
     }
-    
+
     // English pattern checks
     if (RegExp(r'\b(a|an|the)\b').hasMatch(lowerMessage) ||
         RegExp(r'ing\b').hasMatch(lowerMessage) ||
         RegExp(r'ed\b').hasMatch(lowerMessage)) {
       englishScore++;
     }
-    
+
     // Return detected language if there's a clear winner
     if (somaliScore > englishScore && somaliScore > 0) {
       return 'so';
     } else if (englishScore > somaliScore && englishScore > 0) {
       return 'en';
     }
-    
+
     // If no clear detection, return null to use app language
     return null;
   }
@@ -235,9 +363,10 @@ class SmartChatService {
     List<Map<String, dynamic>> placesContext,
     List<Map<String, dynamic>> favoritesContext,
   ) {
-    final userName = userContext['full_name'] ?? userContext['username'] ?? 
-                    (language == 'so' ? 'Saaxiib' : 'Friend');
-    
+    final userName = userContext['full_name'] ??
+        userContext['username'] ??
+        (language == 'so' ? 'Saaxiib' : 'Friend');
+
     final prompt = '''
 You are a smart tourism assistant for Somalia. Your name is "Somalia Tourism AI Assistant".
 
@@ -277,39 +406,44 @@ Please provide a helpful response based on the context above.''';
   // Format places data for context
   static String _formatPlacesData(List<Map<String, dynamic>> places) {
     if (places.isEmpty) return 'No places available';
-    
+
     final buffer = StringBuffer();
-    for (int i = 0; i < places.length && i < 20; i++) { // Limit to first 20 places
+    for (int i = 0; i < places.length && i < 20; i++) {
+      // Limit to first 20 places
       final place = places[i];
       buffer.writeln('- ${place['name_eng']} (${place['name_som']})');
       buffer.writeln('  Category: ${place['category']}');
       buffer.writeln('  Location: ${place['location']}');
-      buffer.writeln('  Price: \$${place['pricePerPerson'] ?? place['price_per_person'] ?? 'Free'}');
+      buffer.writeln(
+        '  Price: \$${place['pricePerPerson'] ?? place['price_per_person'] ?? 'Free'}',
+      );
       if (place['desc_eng'] != null) {
         final desc = place['desc_eng']?.toString() ?? '';
         if (desc.isNotEmpty) {
-          buffer.writeln('  Description: ${desc.length > 100 ? desc.substring(0, 100) + '...' : desc}');
+          buffer.writeln(
+            '  Description: ${desc.length > 100 ? desc.substring(0, 100) + '...' : desc}',
+          );
         }
       }
       buffer.writeln('');
     }
-    
+
     if (places.length > 20) {
       buffer.writeln('... and ${places.length - 20} more places');
     }
-    
+
     return buffer.toString();
   }
 
   // Format favorites data for context
   static String _formatFavoritesData(List<Map<String, dynamic>> favorites) {
     if (favorites.isEmpty) return 'No favorites yet';
-    
+
     final buffer = StringBuffer();
     for (final favorite in favorites) {
       buffer.writeln('- ${favorite['name_eng']} (${favorite['category']})');
     }
-    
+
     return buffer.toString();
   }
 
@@ -317,17 +451,17 @@ Please provide a helpful response based on the context above.''';
   static String _getFrustrationSupportMessage(String language) {
     return language == 'so'
         ? '😔 Waan ogahay inaad dhibaato la kulantay. Waan ka xumahay!\n\n'
-          '📞 Haddii aad u baahan tahay caawimaad degdeg ah, fadlan wac lambarkaan:\n'
-          '**619071794**\n\n'
-          '🕐 Wakhtiga adeegga: 09:00 subaxnimo - 07:00 fiidnimo\n'
-          '💬 Ama sii wad wadahadalka halkan, waan kaa caawin doonaa si fiican!\n\n'
-          'Maxaan kuu samayn karaa si aan kaa caawiyo?'
+            '📞 Haddii aad u baahan tahay caawimaad degdeg ah, fadlan wac lambarkaan:\n'
+            '**619071794**\n\n'
+            '🕐 Wakhtiga adeegga: 09:00 subaxnimo - 07:00 fiidnimo\n'
+            '💬 Ama sii wad wadahadalka halkan, waan kaa caawin doonaa si fiican!\n\n'
+            'Maxaan kuu samayn karaa si aan kaa caawiyo?'
         : '😔 I understand you\'re experiencing some frustration. I\'m sorry about that!\n\n'
-          '📞 If you need immediate assistance, please call this number:\n'
-          '**619071794**\n\n'
-          '🕐 Service hours: 09:00 AM - 07:00 PM\n'
-          '💬 Or continue chatting here, I\'m here to help you better!\n\n'
-          'What can I do to assist you properly?';
+            '📞 If you need immediate assistance, please call this number:\n'
+            '**619071794**\n\n'
+            '🕐 Service hours: 09:00 AM - 07:00 PM\n'
+            '💬 Or continue chatting here, I\'m here to help you better!\n\n'
+            'What can I do to assist you properly?';
   }
 
   // Service unavailable message
@@ -337,11 +471,10 @@ Please provide a helpful response based on the context above.''';
         : '⚠️ Sorry, the AI service is currently unavailable. Please check your Gemini API key or try again later.';
   }
 
-
-
   // Get user context for personalization
   static Future<Map<String, dynamic>> _getUserContext(
-      AuthProvider authProvider) async {
+    AuthProvider authProvider,
+  ) async {
     try {
       final user = authProvider.currentUser;
       if (user == null) return {};
@@ -374,12 +507,14 @@ Please provide a helpful response based on the context above.''';
         if (_dbHelper.supportsPlaces) {
           final places = await _dbHelper.getAllPlaces();
           print(
-              '🔄 AI Support: Fallback to local database, found ${places.length} places');
+            '🔄 AI Support: Fallback to local database, found ${places.length} places',
+          );
           return places;
         }
       } catch (fallbackError) {
         print(
-            '❌ AI Support: Fallback to local database also failed: $fallbackError');
+          '❌ AI Support: Fallback to local database also failed: $fallbackError',
+        );
       }
       return [];
     }
@@ -387,7 +522,8 @@ Please provide a helpful response based on the context above.''';
 
   // Get complete user favorites context with full JSON from backend
   static Future<List<Map<String, dynamic>>> _getFavoritesContext(
-      AuthProvider authProvider) async {
+    AuthProvider authProvider,
+  ) async {
     try {
       final user = authProvider.currentUser;
       if (user == null) {
@@ -398,7 +534,8 @@ Please provide a helpful response based on the context above.''';
       // Get the complete JSON data from backend API
       final favorites = await FavoritesService.getFavorites();
       print(
-          '🔍 AI Support: Found ${favorites.length} favorites from backend API');
+        '🔍 AI Support: Found ${favorites.length} favorites from backend API',
+      );
 
       // Return the complete JSON data without filtering
       return favorites;
@@ -412,13 +549,15 @@ Please provide a helpful response based on the context above.''';
             final userId = user['id'] ?? user['_id'];
             final favorites = await _dbHelper.getFavoritePlaces(userId);
             print(
-                '🔄 AI Support: Fallback to local database, found ${favorites.length} favorites');
+              '🔄 AI Support: Fallback to local database, found ${favorites.length} favorites',
+            );
             return favorites;
           }
         }
       } catch (fallbackError) {
         print(
-            '❌ AI Support: Fallback to local database also failed: $fallbackError');
+          '❌ AI Support: Fallback to local database also failed: $fallbackError',
+        );
       }
       return [];
     }

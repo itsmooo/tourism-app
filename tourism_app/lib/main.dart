@@ -32,8 +32,13 @@ void main() async {
   // For web platform, sqflite will use IndexedDB automatically
 
   // Initialize SmartChatService with Gemini AI
-  SmartChatService.initialize();
-  print('🤖 SmartChatService initialized');
+  try {
+    SmartChatService.initialize();
+    final status = SmartChatService.checkApiStatus();
+    print('🤖 SmartChatService initialized - Status: $status');
+  } catch (e) {
+    print('❌ Failed to initialize SmartChatService: $e');
+  }
 
   print('🚀 Starting app...');
   runApp(const MyApp());
@@ -49,7 +54,6 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-
         ChangeNotifierProvider(create: (_) => EnhancedUserBehaviorProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
       ],

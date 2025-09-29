@@ -41,19 +41,30 @@ class _SupportTabState extends State<SupportTab> with TickerProviderStateMixin {
   }
 
   Future<void> _loadMessages() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final userId = authProvider.currentUser?['id'];
-    final messages = await _dbHelper.getChatMessages(userId);
-    if (messages.isEmpty) {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = authProvider.currentUser?['id'];
+      print('📱 Loading messages for user: $userId');
+      
+      final messages = await _dbHelper.getChatMessages(userId);
+      print('📱 Loaded ${messages.length} messages from database');
+      
+      if (messages.isEmpty) {
+        print('📱 No messages found, adding welcome message');
+        _addWelcomeMessage();
+      } else {
+        setState(() {
+          _messages.addAll(messages.map((m) => ChatMessage.fromMap(m)));
+        });
+        print('📱 Added ${messages.length} messages to UI');
+        // Auto-scroll to bottom after loading messages
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToBottom();
+        });
+      }
+    } catch (e) {
+      print('❌ Failed to load messages: $e');
       _addWelcomeMessage();
-    } else {
-      setState(() {
-        _messages.addAll(messages.map((m) => ChatMessage.fromMap(m)));
-      });
-      // Auto-scroll to bottom after loading messages
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
-      });
     }
   }
 
@@ -106,6 +117,8 @@ class _SupportTabState extends State<SupportTab> with TickerProviderStateMixin {
     if (_messageController.text.trim().isEmpty) return;
 
     final message = _messageController.text.trim();
+    print('💬 Sending message: $message');
+    
     _messageController.clear();
     _textFieldFocusNode.unfocus();
 
@@ -120,21 +133,34 @@ class _SupportTabState extends State<SupportTab> with TickerProviderStateMixin {
       userId: userId,
     );
 
-    final userMessageId =
-        await _dbHelper.insertChatMessage(userMessage.toMap());
+    try {
+      final userMessageId = await _dbHelper.insertChatMessage(userMessage.toMap());
+      print('✅ User message saved with ID: $userMessageId');
 
-    setState(() {
-      _messages.add(userMessage.copyWith(id: userMessageId));
-      _isLoading = true;
-    });
+      setState(() {
+        _messages.add(userMessage.copyWith(id: userMessageId));
+        _isLoading = true;
+      });
+      print('📱 UI updated with user message');
 
-    _scrollToBottom();
+      _scrollToBottom();
+    } catch (e) {
+      print('❌ Failed to save user message: $e');
+      // Still show the message in UI even if database fails
+      setState(() {
+        _messages.add(userMessage);
+        _isLoading = true;
+      });
+      _scrollToBottom();
+    }
 
     try {
       final languageProvider =
           Provider.of<LanguageProvider>(context, listen: false);
+      print('🤖 Calling SmartChatService...');
       final response = await SmartChatService.sendSmartMessage(
           message, languageProvider.currentLanguage, authProvider);
+      print('✅ Received AI response: ${response.length > 50 ? response.substring(0, 50) + '...' : response}');
 
       // Save assistant message
       final assistantMessage = ChatMessage(
@@ -144,18 +170,30 @@ class _SupportTabState extends State<SupportTab> with TickerProviderStateMixin {
         userId: userId,
       );
 
-      final assistantMessageId =
-          await _dbHelper.insertChatMessage(assistantMessage.toMap());
+      try {
+        final assistantMessageId = await _dbHelper.insertChatMessage(assistantMessage.toMap());
+        print('✅ Assistant message saved with ID: $assistantMessageId');
 
-      setState(() {
-        _messages.add(assistantMessage.copyWith(id: assistantMessageId));
-        _isLoading = false;
-      });
+        setState(() {
+          _messages.add(assistantMessage.copyWith(id: assistantMessageId));
+          _isLoading = false;
+        });
+        print('📱 UI updated with assistant message');
+      } catch (dbError) {
+        print('❌ Failed to save assistant message: $dbError');
+        // Still show the response in UI even if database fails
+        setState(() {
+          _messages.add(assistantMessage);
+          _isLoading = false;
+        });
+        print('📱 UI updated with assistant message (no DB)');
+      }
       
       // Auto-scroll to bottom after receiving assistant response
       _scrollToBottom();
     } catch (e) {
-      print('Chat error: $e');
+      print('❌ Chat error: $e');
+      print('❌ Error type: ${e.runtimeType}');
       
       // Enhanced error handling with more specific messages
       String errorText;
@@ -176,6 +214,21 @@ class _SupportTabState extends State<SupportTab> with TickerProviderStateMixin {
             : '🤖 $userName, adeegga AI-ga caqliga leh hadda lama heli karo, laakiin weli halkan baan u joogaa si aan kaaga caawiyo!\n\n'
               'Waxaan u leeyahay gelitaan dhammaan xogtaada waxaanan bixin karaa talooyinka gaarka ah, falanqaynta qiimaha, iyo qorshaynta safarka. Isku day inaad i weydiiso meelaha ugu jaban ama kuwa aad jeceshahay!';
       }
+
+      // Create error message and add to UI
+      final errorMessage = ChatMessage(
+        message: errorText,
+        isUser: false,
+        timestamp: DateTime.now(),
+        userId: userId,
+      );
+
+      setState(() {
+        _messages.add(errorMessage);
+        _isLoading = false;
+      });
+      print('📱 Added error message to UI');
+      _scrollToBottom();
 
       // Save error message
       final errorChatMessage = ChatMessage(
