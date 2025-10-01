@@ -263,13 +263,17 @@ export function DestinationsSection() {
       return imagePath;
     }
     
+    // Get the API base URL from environment
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://tourism-app-ruddy.vercel.app/api';
+    const baseUrl = apiBaseUrl.replace('/api', ''); // Remove /api to get the base URL
+    
     // If it starts with /uploads, construct the full URL
     if (imagePath.startsWith('/uploads')) {
-      return `http://localhost:9000${imagePath}`;
+      return `${baseUrl}${imagePath}`;
     }
     
     // If it's just a filename (from seed data), add the uploads path
-    return `http://localhost:9000/uploads/${imagePath}`;
+    return `${baseUrl}/uploads/${imagePath}`;
   };
 
   if (isLoading) {
