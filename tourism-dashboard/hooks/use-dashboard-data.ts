@@ -9,12 +9,22 @@ export function useDashboardData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch dashboard statistics
+  // Fetch dashboard statistics (now returns places, bookings, users too)
   const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
       const dashboardStats = await apiService.getDashboardStats();
       setStats(dashboardStats);
+      // If server returned full datasets, set them to avoid extra requests
+      if (Array.isArray((dashboardStats as any).places)) {
+        setPlaces((dashboardStats as any).places as Place[]);
+      }
+      if (Array.isArray((dashboardStats as any).bookings)) {
+        setBookings((dashboardStats as any).bookings as Booking[]);
+      }
+      if (Array.isArray((dashboardStats as any).users)) {
+        setUsers((dashboardStats as any).users as User[]);
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch dashboard stats');
@@ -37,21 +47,7 @@ export function useDashboardData() {
   // Fetch all bookings
   const fetchBookings = useCallback(async () => {
     try {
-      console.log('🔄 Fetching bookings from API...');
       const bookingsData = await apiService.getAllBookings();
-      console.log('📥 Received bookings data:', bookingsData);
-      
-      // Debug: Check first booking structure
-      if (bookingsData.length > 0) {
-        const firstBooking = bookingsData[0];
-        console.log('🔍 First booking structure:');
-        console.log('- ID:', firstBooking._id);
-        console.log('- User:', firstBooking.user);
-        console.log('- Place:', firstBooking.place);
-        console.log('- Place type:', typeof firstBooking.place);
-        console.log('- Place name_eng:', firstBooking.place?.name_eng);
-      }
-      
       setBookings(bookingsData);
     } catch (err) {
       console.error('Error fetching bookings:', err);
@@ -70,13 +66,9 @@ export function useDashboardData() {
 
   // Refresh all data
   const refreshData = useCallback(async () => {
-    await Promise.all([
-      fetchStats(),
-      fetchPlaces(),
-      fetchBookings(),
-      fetchUsers(),
-    ]);
-  }, [fetchStats, fetchPlaces, fetchBookings, fetchUsers]);
+    // Single call: fetchStats already hydrates places/bookings/users
+    await fetchStats();
+  }, [fetchStats]);
 
   // Update booking status
   const updateBookingStatus = useCallback(async (bookingId: string, status: string) => {
@@ -158,10 +150,32 @@ export function useDashboardData() {
     refreshData();
   }, [refreshData]);
 
-  // Auto-refresh data every 30 seconds
+  // Auto-refresh data every 30 seconds, pause when tab is hidden
   useEffect(() => {
-    const interval = setInterval(refreshData, 30000);
-    return () => clearInterval(interval);
+    let interval: any;
+    const start = () => {
+      interval = setInterval(() => {
+        if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+          refreshData();
+        }
+      }, 30000);
+    };
+    const handleVisibility = () => {
+      if (typeof document === 'undefined') return;
+      if (document.visibilityState === 'visible') {
+        refreshData();
+      }
+    };
+    start();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibility);
+    }
+    return () => {
+      clearInterval(interval);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibility);
+      }
+    };
   }, [refreshData]);
 
   return {

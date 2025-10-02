@@ -29,7 +29,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Save, X } from "lucide-react";
 
 export function DestinationsSection() {
@@ -39,7 +45,7 @@ export function DestinationsSection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
-  
+
   // View and Edit modal states
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewingPlace, setViewingPlace] = useState(null);
@@ -47,14 +53,14 @@ export function DestinationsSection() {
   const [editingPlace, setEditingPlace] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [editForm, setEditForm] = useState({
-    name_eng: '',
-    name_som: '',
-    desc_eng: '',
-    desc_som: '',
-    location: '',
-    category: '',
-    pricePerPerson: '',
-    maxCapacity: ''
+    name_eng: "",
+    name_som: "",
+    desc_eng: "",
+    desc_som: "",
+    location: "",
+    category: "",
+    pricePerPerson: "",
+    maxCapacity: "",
   });
 
   const categories = [
@@ -78,10 +84,12 @@ export function DestinationsSection() {
         : response?.data || [];
       setPlaces(placesData);
       setFilteredPlaces(placesData);
-      
+
       // Show success toast if this was a manual refresh
       if (!isLoading) {
-        toast.success(`Refreshed places list (${placesData.length} places found)`);
+        toast.success(
+          `Refreshed places list (${placesData.length} places found)`
+        );
       }
     } catch (error) {
       console.error("Error fetching places:", error);
@@ -128,7 +136,7 @@ export function DestinationsSection() {
   const handleDeletePlace = async (placeId, placeName) => {
     if (window.confirm(`Are you sure you want to delete "${placeName}"?`)) {
       try {
-        const loadingToast = toast.loading('Deleting place...');
+        const loadingToast = toast.loading("Deleting place...");
         await apiService.deletePlace(placeId);
         toast.dismiss(loadingToast);
         setPlaces((prev) => prev.filter((place) => place._id !== placeId));
@@ -151,23 +159,23 @@ export function DestinationsSection() {
   const handleEditPlace = (place) => {
     setEditingPlace(place);
     setEditForm({
-      name_eng: place.name_eng || '',
-      name_som: place.name_som || '',
-      desc_eng: place.desc_eng || '',
-      desc_som: place.desc_som || '',
-      location: place.location || '',
-      category: place.category || '',
-      pricePerPerson: place.pricePerPerson || '',
-      maxCapacity: place.maxCapacity || ''
+      name_eng: place.name_eng || "",
+      name_som: place.name_som || "",
+      desc_eng: place.desc_eng || "",
+      desc_som: place.desc_som || "",
+      location: place.location || "",
+      category: place.category || "",
+      pricePerPerson: place.pricePerPerson || "",
+      maxCapacity: place.maxCapacity || "",
     });
     setIsEditModalOpen(true);
   };
 
   // Handle form changes
   const handleFormChange = (field, value) => {
-    setEditForm(prev => ({
+    setEditForm((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -175,30 +183,35 @@ export function DestinationsSection() {
   const handleUpdatePlace = async () => {
     try {
       setIsUpdating(true);
-      const loadingToast = toast.loading('Updating place...');
-      
+      const loadingToast = toast.loading("Updating place...");
+
       // Create FormData for the update
       const formData = new FormData();
-      formData.append('name_eng', editForm.name_eng);
-      formData.append('name_som', editForm.name_som);
-      formData.append('desc_eng', editForm.desc_eng);
-      formData.append('desc_som', editForm.desc_som);
-      formData.append('location', editForm.location);
-      formData.append('category', editForm.category);
-      formData.append('pricePerPerson', editForm.pricePerPerson);
-      formData.append('maxCapacity', editForm.maxCapacity);
+      formData.append("name_eng", editForm.name_eng);
+      formData.append("name_som", editForm.name_som);
+      formData.append("desc_eng", editForm.desc_eng);
+      formData.append("desc_som", editForm.desc_som);
+      formData.append("location", editForm.location);
+      formData.append("category", editForm.category);
+      formData.append("pricePerPerson", editForm.pricePerPerson);
+      formData.append("maxCapacity", editForm.maxCapacity);
 
-      const updatedPlace = await apiService.updatePlace(editingPlace._id, formData);
-      
+      const updatedPlace = await apiService.updatePlace(
+        editingPlace._id,
+        formData
+      );
+
       toast.dismiss(loadingToast);
       toast.success(`Place "${editForm.name_eng}" has been updated.`);
-      
+
       // Update the places list
-      setPlaces(prev => prev.map(place => 
-        place._id === editingPlace._id ? updatedPlace : place
-      ));
+      setPlaces((prev) =>
+        prev.map((place) =>
+          place._id === editingPlace._id ? updatedPlace : place
+        )
+      );
       filterPlaces();
-      
+
       closeEditModal();
     } catch (error) {
       console.error("Error updating place:", error);
@@ -213,14 +226,14 @@ export function DestinationsSection() {
     setIsEditModalOpen(false);
     setEditingPlace(null);
     setEditForm({
-      name_eng: '',
-      name_som: '',
-      desc_eng: '',
-      desc_som: '',
-      location: '',
-      category: '',
-      pricePerPerson: '',
-      maxCapacity: ''
+      name_eng: "",
+      name_som: "",
+      desc_eng: "",
+      desc_som: "",
+      location: "",
+      category: "",
+      pricePerPerson: "",
+      maxCapacity: "",
     });
   };
 
@@ -257,23 +270,22 @@ export function DestinationsSection() {
   // Function to construct proper image URLs
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
-    
+
     // If it's already a full URL, use it
-    if (imagePath.startsWith('http')) {
+    if (imagePath.startsWith("http")) {
       return imagePath;
     }
-    
-    // Get the API base URL from environment
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://tourism-app-ruddy.vercel.app/api';
-    const baseUrl = apiBaseUrl.replace('/api', ''); // Remove /api to get the base URL
-    
+
+    // Use localhost for image URLs since we're using localhost for places API
+    const localhostBaseUrl = "http://localhost:9000";
+
     // If it starts with /uploads, construct the full URL
-    if (imagePath.startsWith('/uploads')) {
-      return `${baseUrl}${imagePath}`;
+    if (imagePath.startsWith("/uploads")) {
+      return `${localhostBaseUrl}${imagePath}`;
     }
-    
+
     // If it's just a filename (from seed data), add the uploads path
-    return `${baseUrl}/uploads/${imagePath}`;
+    return `${localhostBaseUrl}/uploads/${imagePath}`;
   };
 
   if (isLoading) {
@@ -312,12 +324,10 @@ export function DestinationsSection() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={fetchPlaces}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          <Button variant="outline" onClick={fetchPlaces} disabled={isLoading}>
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
           <Button onClick={() => setIsCreateModalOpen(true)}>
@@ -390,30 +400,35 @@ export function DestinationsSection() {
               key={place._id}
               className="overflow-hidden hover:shadow-lg transition-shadow"
             >
-                              <div className="aspect-video bg-gray-100 relative overflow-hidden">
-                  {place.image_path ? (
-                    <img
-                      src={getImageUrl(place.image_path)}
-                      alt={place.name_eng}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        console.log('Image failed to load:', place.image_path, 'URL:', getImageUrl(place.image_path));
-                        e.target.src = "/placeholder.jpg";
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                      <MapPin className="h-12 w-12 text-gray-400" />
-                    </div>
-                  )}
-                  <Badge
-                    className={`absolute top-2 right-2 ${getCategoryColor(
-                      place.category
-                    )}`}
-                  >
-                    {place.category}
-                  </Badge>
-                </div>
+              <div className="aspect-video bg-gray-100 relative overflow-hidden">
+                {place.image_path ? (
+                  <img
+                    src={getImageUrl(place.image_path)}
+                    alt={place.name_eng}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.log(
+                        "Image failed to load:",
+                        place.image_path,
+                        "URL:",
+                        getImageUrl(place.image_path)
+                      );
+                      e.target.src = "/placeholder.jpg";
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                    <MapPin className="h-12 w-12 text-gray-400" />
+                  </div>
+                )}
+                <Badge
+                  className={`absolute top-2 right-2 ${getCategoryColor(
+                    place.category
+                  )}`}
+                >
+                  {place.category}
+                </Badge>
+              </div>
 
               <CardContent className="p-6">
                 <div className="space-y-3">
@@ -451,18 +466,18 @@ export function DestinationsSection() {
                 </div>
 
                 <div className="flex gap-2 mt-4 pt-4 border-t">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="flex-1"
                     onClick={() => handleViewPlace(place)}
                   >
                     <Eye className="h-4 w-4 mr-1" />
                     View
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="flex-1"
                     onClick={() => handleEditPlace(place)}
                   >
@@ -497,68 +512,102 @@ export function DestinationsSection() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Place ID</Label>
-                  <p className="text-gray-900 font-mono text-sm">{viewingPlace._id}</p>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Place ID
+                  </Label>
+                  <p className="text-gray-900 font-mono text-sm">
+                    {viewingPlace._id}
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Category</Label>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Category
+                  </Label>
                   <Badge className={getCategoryColor(viewingPlace.category)}>
                     {viewingPlace.category}
                   </Badge>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">English Name</Label>
+                  <Label className="text-sm font-medium text-gray-600">
+                    English Name
+                  </Label>
                   <p className="text-gray-900">{viewingPlace.name_eng}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Somali Name</Label>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Somali Name
+                  </Label>
                   <p className="text-gray-900">{viewingPlace.name_som}</p>
                 </div>
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-gray-600">Location</Label>
+                <Label className="text-sm font-medium text-gray-600">
+                  Location
+                </Label>
                 <p className="text-gray-900">{viewingPlace.location}</p>
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-gray-600">English Description</Label>
+                <Label className="text-sm font-medium text-gray-600">
+                  English Description
+                </Label>
                 <p className="text-gray-900 text-sm">{viewingPlace.desc_eng}</p>
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-gray-600">Somali Description</Label>
+                <Label className="text-sm font-medium text-gray-600">
+                  Somali Description
+                </Label>
                 <p className="text-gray-900 text-sm">{viewingPlace.desc_som}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Price per Person</Label>
-                  <p className="text-gray-900">${viewingPlace.pricePerPerson}</p>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Price per Person
+                  </Label>
+                  <p className="text-gray-900">
+                    ${viewingPlace.pricePerPerson}
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Max Capacity</Label>
-                  <p className="text-gray-900">{viewingPlace.maxCapacity} people</p>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Max Capacity
+                  </Label>
+                  <p className="text-gray-900">
+                    {viewingPlace.maxCapacity} people
+                  </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Created</Label>
-                  <p className="text-gray-900 text-sm">{formatDate(viewingPlace.createdAt)}</p>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Created
+                  </Label>
+                  <p className="text-gray-900 text-sm">
+                    {formatDate(viewingPlace.createdAt)}
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Last Updated</Label>
-                  <p className="text-gray-900 text-sm">{formatDate(viewingPlace.updatedAt)}</p>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Last Updated
+                  </Label>
+                  <p className="text-gray-900 text-sm">
+                    {formatDate(viewingPlace.updatedAt)}
+                  </p>
                 </div>
               </div>
 
               {viewingPlace.image_path && (
                 <div>
-                  <Label className="text-sm font-medium text-gray-600">Image</Label>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Image
+                  </Label>
                   <div className="mt-2">
                     <img
                       src={getImageUrl(viewingPlace.image_path)}
@@ -606,7 +655,7 @@ export function DestinationsSection() {
                 <Input
                   id="name_eng"
                   value={editForm.name_eng}
-                  onChange={(e) => handleFormChange('name_eng', e.target.value)}
+                  onChange={(e) => handleFormChange("name_eng", e.target.value)}
                   placeholder="Enter English name"
                 />
               </div>
@@ -615,7 +664,7 @@ export function DestinationsSection() {
                 <Input
                   id="name_som"
                   value={editForm.name_som}
-                  onChange={(e) => handleFormChange('name_som', e.target.value)}
+                  onChange={(e) => handleFormChange("name_som", e.target.value)}
                   placeholder="Enter Somali name"
                 />
               </div>
@@ -626,23 +675,28 @@ export function DestinationsSection() {
               <Input
                 id="location"
                 value={editForm.location}
-                onChange={(e) => handleFormChange('location', e.target.value)}
+                onChange={(e) => handleFormChange("location", e.target.value)}
                 placeholder="Enter location"
               />
             </div>
 
             <div>
               <Label htmlFor="category">Category</Label>
-              <Select value={editForm.category} onValueChange={(value) => handleFormChange('category', value)}>
+              <Select
+                value={editForm.category}
+                onValueChange={(value) => handleFormChange("category", value)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.filter(cat => cat !== 'all').map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </SelectItem>
-                  ))}
+                  {categories
+                    .filter((cat) => cat !== "all")
+                    .map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -654,7 +708,9 @@ export function DestinationsSection() {
                   id="pricePerPerson"
                   type="number"
                   value={editForm.pricePerPerson}
-                  onChange={(e) => handleFormChange('pricePerPerson', e.target.value)}
+                  onChange={(e) =>
+                    handleFormChange("pricePerPerson", e.target.value)
+                  }
                   placeholder="Enter price"
                 />
               </div>
@@ -664,7 +720,9 @@ export function DestinationsSection() {
                   id="maxCapacity"
                   type="number"
                   value={editForm.maxCapacity}
-                  onChange={(e) => handleFormChange('maxCapacity', e.target.value)}
+                  onChange={(e) =>
+                    handleFormChange("maxCapacity", e.target.value)
+                  }
                   placeholder="Enter capacity"
                 />
               </div>
@@ -675,7 +733,7 @@ export function DestinationsSection() {
               <textarea
                 id="desc_eng"
                 value={editForm.desc_eng}
-                onChange={(e) => handleFormChange('desc_eng', e.target.value)}
+                onChange={(e) => handleFormChange("desc_eng", e.target.value)}
                 placeholder="Enter English description"
                 className="w-full p-2 border border-gray-300 rounded-md resize-none"
                 rows={3}
@@ -687,7 +745,7 @@ export function DestinationsSection() {
               <textarea
                 id="desc_som"
                 value={editForm.desc_som}
-                onChange={(e) => handleFormChange('desc_som', e.target.value)}
+                onChange={(e) => handleFormChange("desc_som", e.target.value)}
                 placeholder="Enter Somali description"
                 className="w-full p-2 border border-gray-300 rounded-md resize-none"
                 rows={3}
@@ -695,13 +753,17 @@ export function DestinationsSection() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={closeEditModal} disabled={isUpdating}>
+            <Button
+              variant="outline"
+              onClick={closeEditModal}
+              disabled={isUpdating}
+            >
               <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
             <Button onClick={handleUpdatePlace} disabled={isUpdating}>
               <Save className="h-4 w-4 mr-2" />
-              {isUpdating ? 'Updating...' : 'Update Place'}
+              {isUpdating ? "Updating..." : "Update Place"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -720,21 +782,21 @@ export function DestinationsSection() {
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#363636',
-            color: '#fff',
+            background: "#363636",
+            color: "#fff",
           },
           success: {
             duration: 3000,
             iconTheme: {
-              primary: '#10B981',
-              secondary: '#fff',
+              primary: "#10B981",
+              secondary: "#fff",
             },
           },
           error: {
             duration: 4000,
             iconTheme: {
-              primary: '#EF4444',
-              secondary: '#fff',
+              primary: "#EF4444",
+              secondary: "#fff",
             },
           },
         }}

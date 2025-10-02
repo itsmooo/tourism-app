@@ -1,6 +1,7 @@
 // API Service for connecting to Node.js backend
 import { env } from './env';
 const API_BASE_URL = env.api.baseUrl;
+const LOCALHOST_API_URL = env.api.localhostUrl;
 
 export interface Place {
   _id: string;
@@ -61,6 +62,10 @@ export interface DashboardStats {
   monthlyRevenue: { month: string; revenue: number }[];
   recentBookings: Booking[];
   topDestinations: { place: Place; bookingCount: number }[];
+  // Include full datasets to avoid duplicate fetching on the client
+  places?: Place[];
+  bookings?: Booking[];
+  users?: User[];
 }
 
 class ApiService {
@@ -93,21 +98,52 @@ class ApiService {
     }
   }
 
-  // Places API
+  private async requestWithUrl<T>(baseUrl: string, endpoint: string, options: RequestInit = {}): Promise<T> {
+    const url = `${baseUrl}${endpoint}`;
+    
+    // Get auth token from localStorage
+    const token = localStorage.getItem('authToken');
+    
+    const config: RequestInit = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...options.headers,
+      },
+      ...options,
+    };
+
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      // Handle wrapped response format from localhost API
+      return result.data || result;
+    } catch (error) {
+      console.error(`API request failed for ${endpoint}:`, error);
+      throw error;
+    }
+  }
+
+  // Places API - using localhost for all operations to avoid Vercel file system issues
   async getAllPlaces(): Promise<Place[]> {
-    return this.request<Place[]>('/places');
+    return this.requestWithUrl<Place[]>(LOCALHOST_API_URL, '/places');
   }
 
   async getPlaceById(id: string): Promise<Place> {
-    return this.request<Place>(`/places/${id}`);
+    return this.requestWithUrl<Place>(LOCALHOST_API_URL, `/places/${id}`);
   }
 
   async getPlacesByCategory(category: string): Promise<Place[]> {
-    return this.request<Place[]>(`/places/category/${category}`);
+    return this.requestWithUrl<Place[]>(LOCALHOST_API_URL, `/places/category/${category}`);
   }
 
   async createPlace(placeData: FormData): Promise<Place> {
-    const url = `${API_BASE_URL}/places`;
+    const url = `${LOCALHOST_API_URL}/places`;
     
     // Get auth token from localStorage
     const token = localStorage.getItem('authToken');
@@ -131,7 +167,9 @@ class ApiService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      return await response.json();
+      const result = await response.json();
+      // Handle wrapped response format from localhost API
+      return result.data || result;
     } catch (error) {
       console.error(`API request failed for /places:`, error);
       throw error;
@@ -139,7 +177,7 @@ class ApiService {
   }
 
   async updatePlace(id: string, placeData: FormData): Promise<Place> {
-    const url = `${API_BASE_URL}/places/${id}`;
+    const url = `${LOCALHOST_API_URL}/places/${id}`;
     
     // Get auth token from localStorage
     const token = localStorage.getItem('authToken');
@@ -160,7 +198,9 @@ class ApiService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      return await response.json();
+      const result = await response.json();
+      // Handle wrapped response format from localhost API
+      return result.data || result;
     } catch (error) {
       console.error(`API request failed for /places/${id}:`, error);
       throw error;
@@ -168,17 +208,14 @@ class ApiService {
   }
 
   async deletePlace(id: string): Promise<void> {
-    return this.request<void>(`/places/${id}`, {
+    return this.requestWithUrl<void>(LOCALHOST_API_URL, `/places/${id}`, {
       method: 'DELETE',
     });
   }
 
   // Bookings API
   async getAllBookings(): Promise<Booking[]> {
-    console.log('🌐 API: Fetching all bookings from /bookings');
-    const result = await this.request<Booking[]>('/bookings');
-    console.log('📥 API: Received bookings result:', result);
-    return result;
+    return this.request<Booking[]>('/bookings');
   }
 
   async updateBookingStatus(id: string, status: string, paymentStatus?: string): Promise<Booking> {
@@ -254,14 +291,6 @@ class ApiService {
     const bookingsArray = Array.isArray(bookings) ? bookings : (bookings as any)?.data || [];
     const usersArray = Array.isArray(users) ? users : (users as any)?.data || [];
 
-    // Debug logging
-    console.log('Raw places data:', places);
-    console.log('Places array:', placesArray);
-    console.log('Raw bookings data:', bookings);
-    console.log('Bookings array:', bookingsArray);
-    console.log('Raw users data:', users);
-    console.log('Users array:', usersArray);
-
     // Calculate statistics
     const totalRevenue = bookingsArray
       .filter((b: any) => b.paymentStatus === 'paid')
@@ -293,6 +322,9 @@ class ApiService {
       monthlyRevenue,
       recentBookings: bookingsArray.slice(0, 5), // Last 5 bookings
       topDestinations,
+      places: placesArray,
+      bookings: bookingsArray,
+      users: usersArray,
     };
   }
 
