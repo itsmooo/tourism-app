@@ -14,6 +14,8 @@ class PaymentService {
     required String bookingDate,
     required String timeSlot,
     required int visitorCount,
+    String? placeName,
+    double? pricePerPerson,
   }) async {
     try {
       final response = await http.post(
@@ -29,6 +31,8 @@ class PaymentService {
           'bookingDate': bookingDate,
           'timeSlot': timeSlot,
           'visitorCount': visitorCount,
+          'placeName': placeName,
+          'pricePerPerson': pricePerPerson,
         }),
       );
 

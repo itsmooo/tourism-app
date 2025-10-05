@@ -8,7 +8,7 @@ import { DashboardContent } from "@/components/dashboard-content"
 import { useState } from "react"
 
 export function ProtectedDashboard() {
-  const { isAuthenticated, isAdmin, loading } = useAuth()
+  const { isAuthenticated, hasDashboardAccess, loading } = useAuth()
   const [activeSection, setActiveSection] = useState("overview")
 
   // Show loading while checking authentication
@@ -23,8 +23,8 @@ export function ProtectedDashboard() {
     )
   }
 
-  // If not authenticated or not admin, show login form
-  if (!isAuthenticated() || !isAdmin()) {
+  // If not authenticated or doesn't have dashboard access, show login form
+  if (!isAuthenticated() || !hasDashboardAccess()) {
     return <LoginForm />
   }
 

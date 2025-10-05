@@ -17,7 +17,7 @@ async function processHormuudPayment({ booking, place, userFullName, userAccount
         
         // Calculate amounts
         const totalAmount = booking.totalPrice;
-        const actualPaidAmount = Math.min(totalAmount, 0.01); // For testing: $0.01, for production: use totalAmount
+        const actualPaidAmount = totalAmount; // Use actual amount instead of test amount
         
         console.log(`💰 Total amount: $${totalAmount}, Paying: $${actualPaidAmount}`);
         

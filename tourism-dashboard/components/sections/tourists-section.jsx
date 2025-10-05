@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 // Sample data for stats (will be calculated from real users)
 const getStatsFromUsers = (users) => {
   const totalUsers = users.length;
-  const activeUsers = users.filter(user => user.status === 'active').length;
+  const activeUsers = users.filter(user => user.isActive === true).length;
   const inactiveUsers = totalUsers - activeUsers;
   
   return [
@@ -60,6 +60,7 @@ export function TouristsSection() {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showActiveOnly, setShowActiveOnly] = useState(true); // Default to show only active users
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -102,19 +103,25 @@ export function TouristsSection() {
     }
   };
 
-  // Filter users based on search
+  // Filter users based on search and activity status
   const filterUsers = () => {
-    if (!searchTerm.trim()) {
-      setFilteredUsers(users);
-      return;
+    let filtered = users;
+
+    // Filter by activity status first
+    if (showActiveOnly) {
+      filtered = filtered.filter(user => user.isActive === true);
     }
 
-    const filtered = users.filter(
-      (user) =>
-        user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.role?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Then filter by search term
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(
+        (user) =>
+          user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.role?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
     setFilteredUsers(filtered);
   };
 
@@ -123,10 +130,10 @@ export function TouristsSection() {
     fetchUsers();
   }, []);
 
-  // Effect to filter users when search changes
+  // Effect to filter users when search or activity filter changes
   useEffect(() => {
     filterUsers();
-  }, [searchTerm, users]);
+  }, [searchTerm, users, showActiveOnly]);
 
   // Get dynamic stats from users
   const stats = getStatsFromUsers(users);
@@ -340,6 +347,16 @@ export function TouristsSection() {
           <div className="flex items-center justify-between">
             <CardTitle>User Directory</CardTitle>
             <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={showActiveOnly ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowActiveOnly(!showActiveOnly)}
+                >
+                  <UserCheck className="h-4 w-4 mr-1" />
+                  Active Only
+                </Button>
+              </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input

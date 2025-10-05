@@ -8,9 +8,19 @@ export function useDashboardData() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
   // Fetch dashboard statistics (now returns places, bookings, users too)
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (forceRefresh = false) => {
+    // Don't fetch if we have recent data and don't need to force refresh
+    if (!forceRefresh && stats && lastFetch) {
+      const timeSinceLastFetch = Date.now() - lastFetch.getTime();
+      if (timeSinceLastFetch < 5 * 60 * 1000) { // 5 minutes
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       const dashboardStats = await apiService.getDashboardStats();
@@ -25,6 +35,7 @@ export function useDashboardData() {
       if (Array.isArray((dashboardStats as any).users)) {
         setUsers((dashboardStats as any).users as User[]);
       }
+      setLastFetch(new Date());
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch dashboard stats');

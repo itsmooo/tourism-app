@@ -89,27 +89,48 @@ exports.createBooking = async (req, res) => {
                     console.log('✅ Hormuud payment successful, booking confirmed');
                     
                     res.status(201).json({
-                        ...createdBooking.toObject(),
-                        paymentData: paymentResult.data,
-                        hormuudPayment: true
+                        success: true,
+                        message: 'Booking created and payment successful',
+                        data: {
+                            ...createdBooking.toObject(),
+                            paymentData: paymentResult.data,
+                            hormuudPayment: true
+                        }
                     });
                 } else {
-                    console.log('❌ Hormuud payment failed, booking remains pending');
+                    console.log('❌ Hormuud payment failed, marking as failed');
                     
-                    res.status(201).json({
-                        ...createdBooking.toObject(),
-                        paymentError: paymentResult.error,
-                        hormuudPayment: false
+                    // Update booking status to reflect payment failure
+                    createdBooking.status = 'pending';
+                    createdBooking.paymentStatus = 'failed';
+                    await createdBooking.save();
+                    
+                    res.status(400).json({
+                        success: false,
+                        message: 'Payment failed',
+                        data: {
+                            ...createdBooking.toObject(),
+                            paymentError: paymentResult.error,
+                            hormuudPayment: false
+                        }
                     });
                 }
             } catch (paymentError) {
                 console.error('Payment processing error:', paymentError);
                 
-                // Still return successful booking, but without payment
-                res.status(201).json({
-                    ...createdBooking.toObject(),
-                    paymentError: paymentError.message,
-                    hormuudPayment: false
+                // Mark booking as failed due to payment error
+                createdBooking.status = 'pending';
+                createdBooking.paymentStatus = 'failed';
+                await createdBooking.save();
+                
+                res.status(400).json({
+                    success: false,
+                    message: 'Payment processing failed',
+                    data: {
+                        ...createdBooking.toObject(),
+                        paymentError: paymentError.message,
+                        hormuudPayment: false
+                    }
                 });
             }
         } else {

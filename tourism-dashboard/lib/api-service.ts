@@ -24,8 +24,12 @@ export interface User {
   username: string;
   email: string;
   full_name?: string;
-  role: 'tourist' | 'admin';
+  role: 'tourist' | 'admin' | 'co-worker';
   favorites: string[];
+  isActive: boolean;
+  lastActiveAt: string;
+  lastLoginAt: string;
+  loginCount: number;
   createdAt: string;
 }
 
@@ -274,6 +278,19 @@ class ApiService {
     return this.request<{ message: string }>(`/users/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // Update user activity
+  async updateUserActivity(): Promise<{ message: string; isActive: boolean; lastActiveAt: string }> {
+    return this.request<{ message: string; isActive: boolean; lastActiveAt: string }>('/auth/activity', {
+      method: 'PUT',
+    });
+  }
+
+  // Get active users only
+  async getActiveUsers(): Promise<User[]> {
+    const allUsers = await this.getAllUsers();
+    return allUsers.filter(user => user.isActive);
   }
 
   // Dashboard Statistics

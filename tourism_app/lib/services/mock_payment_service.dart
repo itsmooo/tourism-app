@@ -14,6 +14,7 @@ class MockPaymentService {
     required String timeSlot,
     required int visitorCount,
     String? placeName,
+    double? pricePerPerson, // Add price per person parameter
   }) async {
     try {
       // Simulate network delay
@@ -21,9 +22,14 @@ class MockPaymentService {
 
       // Generate mock payment data
       final paymentId = 'PAY${_paymentIdCounter++}';
-      final transactionId = 'TXN${Random().nextInt(999999).toString().padLeft(6, '0')}';
+      final transactionId =
+          'TXN${Random().nextInt(999999).toString().padLeft(6, '0')}';
       final now = DateTime.now();
-      
+
+      // Calculate actual amounts based on real pricing
+      final actualPricePerPerson = pricePerPerson ?? 5.0;
+      final totalAmount = visitorCount * actualPricePerPerson;
+
       final mockPayment = {
         '_id': paymentId,
         'userId': userId,
@@ -34,8 +40,9 @@ class MockPaymentService {
         'bookingDate': bookingDate,
         'timeSlot': timeSlot,
         'visitorCount': visitorCount,
-        'totalAmount': visitorCount * 5.0, // Mock price per person
-        'actualPaidAmount': 0.01, // Test amount
+        'totalAmount': totalAmount,
+        'actualPaidAmount':
+            totalAmount, // Use actual amount instead of test amount
         'bookingStatus': 'confirmed',
         'paymentStatus': 'completed',
         'paidAt': now.toIso8601String(),
@@ -80,8 +87,8 @@ class MockPaymentService {
           .toList();
 
       // Sort by creation date (newest first)
-      userPayments.sort((a, b) => 
-          DateTime.parse(b['createdAt']).compareTo(DateTime.parse(a['createdAt'])));
+      userPayments.sort((a, b) => DateTime.parse(b['createdAt'])
+          .compareTo(DateTime.parse(a['createdAt'])));
 
       // Paginate results
       final startIndex = (page - 1) * limit;
@@ -113,7 +120,8 @@ class MockPaymentService {
   }
 
   /// Get mock payment details by ID
-  static Future<Map<String, dynamic>> getPaymentDetails(String paymentId) async {
+  static Future<Map<String, dynamic>> getPaymentDetails(
+      String paymentId) async {
     try {
       // Simulate network delay
       await Future.delayed(const Duration(milliseconds: 500));
@@ -162,7 +170,8 @@ class MockPaymentService {
       // Update payment status
       _mockPayments[paymentIndex]['bookingStatus'] = 'cancelled';
       _mockPayments[paymentIndex]['paymentStatus'] = 'refunded';
-      _mockPayments[paymentIndex]['cancelledAt'] = DateTime.now().toIso8601String();
+      _mockPayments[paymentIndex]['cancelledAt'] =
+          DateTime.now().toIso8601String();
 
       return {
         'success': true,

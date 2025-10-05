@@ -10,6 +10,7 @@ import 'package:tourism_app/screens/dashboard/tabs/support_tab.dart';
 import 'package:tourism_app/screens/dashboard/tabs/about_tab.dart';
 import 'package:tourism_app/screens/dashboard/tabs/profile_tab.dart';
 import 'package:tourism_app/utils/app_colors.dart';
+import 'package:tourism_app/services/user_activity_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   final int initialIndex;
@@ -30,6 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _currentIndex = widget.initialIndex;
     WidgetsBinding.instance.addObserver(this);
     _startTokenRefreshTimer();
+    _updateUserActivity();
   }
 
   @override
@@ -44,6 +46,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (state == AppLifecycleState.resumed) {
       // Check and refresh token when app comes to foreground
       _checkAndRefreshToken();
+      // Update user activity when app becomes active
+      _updateUserActivity();
+    } else if (state == AppLifecycleState.paused) {
+      // Mark user as inactive when app is backgrounded
+      UserActivityService.markInactive();
     }
   }
 
@@ -59,6 +66,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (authProvider.isAuthenticated) {
       authProvider.checkAndRefreshToken();
     }
+  }
+
+  void _updateUserActivity() {
+    UserActivityService.updateActivityStatus();
   }
 
   final List<Widget> _tabs = [

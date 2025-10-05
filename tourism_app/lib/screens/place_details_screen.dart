@@ -5,7 +5,6 @@ import 'package:tourism_app/providers/favorites_provider.dart';
 import 'package:tourism_app/providers/auth_provider.dart';
 import 'package:tourism_app/services/database_helper.dart';
 import 'package:tourism_app/services/payment_service.dart';
-import 'package:tourism_app/services/mock_payment_service.dart';
 import 'package:tourism_app/services/booking_service.dart';
 import 'package:tourism_app/utils/app_colors.dart';
 
@@ -856,12 +855,12 @@ class _BookingDialogState extends State<BookingDialog> {
 
         print('📋 BookingService result: $result');
 
-        // If booking service fails, use mock service as fallback
+        // If booking service fails, try real payment service
         if (!result['success']) {
-          print('BookingService failed, using mock service as fallback');
+          print('BookingService failed, trying real payment service');
           print('Error: ${result['message']}');
 
-          result = await MockPaymentService.createPayment(
+          result = await PaymentService.createPayment(
             userId: user?['_id'] ?? user?['id'] ?? '',
             userFullName: _nameController.text.trim(),
             userAccountNo: _phoneController.text.trim(),
@@ -872,13 +871,14 @@ class _BookingDialogState extends State<BookingDialog> {
             placeName: widget.place['name_eng'] ??
                 widget.place['name'] ??
                 'Unknown Place',
+            pricePerPerson: (widget.place['pricePerPerson'] ?? 5.0).toDouble(),
           );
-          usedMockService = true;
+          usedMockService = false; // This is real payment, not mock
         }
       } catch (e) {
-        print('BookingService error, using mock service: $e');
+        print('BookingService error, trying real payment service: $e');
 
-        result = await MockPaymentService.createPayment(
+        result = await PaymentService.createPayment(
           userId: user?['_id'] ?? user?['id'] ?? '',
           userFullName: _nameController.text.trim(),
           userAccountNo: _phoneController.text.trim(),
@@ -889,23 +889,35 @@ class _BookingDialogState extends State<BookingDialog> {
           placeName: widget.place['name_eng'] ??
               widget.place['name'] ??
               'Unknown Place',
+          pricePerPerson: (widget.place['pricePerPerson'] ?? 5.0).toDouble(),
         );
-        usedMockService = true;
+        usedMockService = false; // This is real payment, not mock
       }
 
       if (result['success']) {
-        // Payment successful
+        // Check actual booking status from backend
+        final bookingStatus = result['data']?['bookingStatus'];
+        final actualPaidAmount =
+            result['data']?['actualPaidAmount'] ?? totalAmount;
+
         if (mounted) {
           setState(() => _isLoading = false);
           Navigator.pop(context);
 
-          // Check if we used mock service or if it's real Hormuud payment
-          bool isDemoMode = usedMockService;
-          bool hasHormuudPayment = result['data']?['hormuudPayment'] == true;
+          if (bookingStatus == 'confirmed') {
+            // Payment successful
+            bool hasHormuudPayment = result['data']?['waafiResponse'] != null ||
+                result['data']?['hormuudPayment'] == true;
 
-          // Show success dialog with booking confirmation
-          _showBookingSuccessDialog(
-              result['data'], totalAmount, isDemoMode, hasHormuudPayment);
+            // Show success dialog with booking confirmation
+            _showBookingSuccessDialog(
+                result['data'], actualPaidAmount, false, hasHormuudPayment);
+          } else {
+            // Payment failed or cancelled
+            final errorMessage =
+                result['message'] ?? 'Payment was cancelled or failed';
+            _showErrorSnackBar(errorMessage);
+          }
         }
       } else {
         // Payment failed
@@ -945,28 +957,25 @@ class _BookingDialogState extends State<BookingDialog> {
             ),
             const SizedBox(height: 20),
             Text(
-              usedMockService
-                  ? 'Booking Confirmed! (Demo Mode)'
-                  : 'Booking Successful!',
+              'Booking Successful!',
               style: GoogleFonts.poppins(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.green,
               ),
             ),
-            if (usedMockService)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Backend service unavailable - using demo mode',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.orange[700],
-                    fontStyle: FontStyle.italic,
-                  ),
-                  textAlign: TextAlign.center,
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Real payment processed successfully',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.green[700],
+                  fontStyle: FontStyle.italic,
                 ),
+                textAlign: TextAlign.center,
               ),
+            ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
@@ -992,7 +1001,8 @@ class _BookingDialogState extends State<BookingDialog> {
                   _buildReceiptRow('Visitors:', _visitorCount.toString()),
                   _buildReceiptRow(
                       'Total Amount:', '\$${totalAmount.toStringAsFixed(2)}'),
-                  _buildReceiptRow('Paid Amount:', '\$0.01 (Test)',
+                  _buildReceiptRow(
+                      'Paid Amount:', '\$${totalAmount.toStringAsFixed(2)}',
                       isHighlight: true),
                   _buildReceiptRow('Status:', 'Confirmed', isHighlight: true),
                 ],
@@ -1442,10 +1452,10 @@ class _BookingDialogState extends State<BookingDialog> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Test payment: \$0.01 (for demo purposes)',
+                              'Real payment processed successfully',
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
-                                color: Colors.orange[700],
+                                color: Colors.green[700],
                                 fontStyle: FontStyle.italic,
                               ),
                             ),

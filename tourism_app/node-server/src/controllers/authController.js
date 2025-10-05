@@ -60,11 +60,21 @@ exports.loginUser = async (req, res) => {
 
         if (user && (await user.matchPassword(password))) {
             console.log('✅ Password match successful');
+            
+            // Update user activity tracking
+            user.isActive = true;
+            user.lastActiveAt = new Date();
+            user.lastLoginAt = new Date();
+            user.loginCount = (user.loginCount || 0) + 1;
+            await user.save();
+            
             res.json({
                 _id: user._id,
                 username: user.username,
                 email: user.email,
                 role: user.role,
+                isActive: user.isActive,
+                lastActiveAt: user.lastActiveAt,
                 token: generateToken(user._id),
             });
         } else {
@@ -88,6 +98,31 @@ exports.verifyToken = async (req, res) => {
         res.status(200).json({ valid: true, userId: decoded.id });
     } catch (error) {
         res.status(401).json({ message: 'Invalid token' });
+    }
+};
+
+// Update user activity endpoint
+exports.updateUserActivity = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        // Update activity status
+        user.isActive = true;
+        user.lastActiveAt = new Date();
+        await user.save();
+        
+        res.json({ 
+            message: 'Activity updated successfully',
+            isActive: user.isActive,
+            lastActiveAt: user.lastActiveAt
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 };
 

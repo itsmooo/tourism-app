@@ -62,14 +62,15 @@ class BookingService {
         print('✅ Booking created successfully');
         return {
           'success': true,
-          'data': responseData,
-          'message': 'Booking created successfully',
+          'data': responseData['data'] ?? responseData,
+          'message': responseData['message'] ?? 'Booking created successfully',
         };
       } else {
         print('❌ Booking failed: ${responseData['message']}');
         return {
           'success': false,
           'message': responseData['message'] ?? 'Booking failed',
+          'data': responseData['data'],
           'statusCode': response.statusCode,
         };
       }

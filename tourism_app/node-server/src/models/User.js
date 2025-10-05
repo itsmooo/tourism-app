@@ -21,13 +21,30 @@ const UserSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['tourist', 'admin'],
+        enum: ['tourist', 'admin', 'co-worker'],
         default: 'tourist'
     },
     favorites: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Place'
     }],
+    // User activity tracking
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    lastActiveAt: {
+        type: Date,
+        default: Date.now
+    },
+    lastLoginAt: {
+        type: Date,
+        default: Date.now
+    },
+    loginCount: {
+        type: Number,
+        default: 0
+    },
     createdAt: {
         type: Date,
         default: Date.now

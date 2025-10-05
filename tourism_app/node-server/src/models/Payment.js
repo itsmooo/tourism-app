@@ -68,7 +68,6 @@ const PaymentSchema = new mongoose.Schema(
     actualPaidAmount: {
       type: Number,
       required: [true, "Actual paid amount is required"],
-      default: 0.01, // Test amount for WaafiPay
       validate: {
         validator: function (v) {
           return v > 0;

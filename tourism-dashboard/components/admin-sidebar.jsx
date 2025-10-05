@@ -14,6 +14,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from "@/contexts/auth-context"
 
 const menuItems = [
   {
@@ -45,6 +46,52 @@ const menuItems = [
 ]
 
 export function AdminSidebar({ activeSection, setActiveSection }) {
+  const { user, isAdmin, isCoWorker } = useAuth();
+  
+  // Filter menu items based on user role
+  const getMenuItems = () => {
+    const allItems = [
+      {
+        title: "Overview",
+        icon: Home,
+        id: "overview",
+        roles: ['admin', 'co-worker']
+      },
+      {
+        title: "Analytics",
+        icon: BarChart3,
+        id: "analytics",
+        roles: ['admin'] // Only admins can see analytics
+      },
+      {
+        title: "Tourists",
+        icon: Users,
+        id: "tourists",
+        roles: ['admin', 'co-worker']
+      },
+      {
+        title: "Bookings",
+        icon: Calendar,
+        id: "bookings",
+        roles: ['admin', 'co-worker']
+      },
+      {
+        title: "Destinations",
+        icon: MapPin,
+        id: "destinations",
+        roles: ['admin', 'co-worker']
+      },
+    ];
+    
+    return allItems.filter(item => {
+      if (isAdmin()) return true;
+      if (isCoWorker()) return item.roles.includes('co-worker');
+      return false;
+    });
+  };
+
+  const filteredMenuItems = getMenuItems();
+
   return (
     <Sidebar className="border-r border-blue-200">
       <SidebarHeader className="border-b border-blue-200 bg-blue-600 text-white">
@@ -64,7 +111,7 @@ export function AdminSidebar({ activeSection, setActiveSection }) {
           <SidebarGroupLabel className="text-gray-600 font-semibold">Management</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {filteredMenuItems.map((item) => (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
                     onClick={() => setActiveSection(item.id)}
@@ -89,11 +136,18 @@ export function AdminSidebar({ activeSection, setActiveSection }) {
         <div className="flex items-center gap-3 px-3 py-3">
           <Avatar className="h-8 w-8">
             <AvatarImage src="/placeholder.svg?height=32&width=32" />
-            <AvatarFallback className="bg-blue-600 text-white">AD</AvatarFallback>
+            <AvatarFallback className="bg-blue-600 text-white">
+              {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 text-sm">
-            <p className="font-medium text-gray-900">Admin User</p>
-            <p className="text-gray-500">admin@somalia-tourism.so</p>
+            <p className="font-medium text-gray-900">
+              {user?.username || 'User'} 
+              <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                {user?.role || 'user'}
+              </span>
+            </p>
+            <p className="text-gray-500">{user?.email || 'user@example.com'}</p>
           </div>
         </div>
       </SidebarFooter>

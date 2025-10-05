@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
-import 'package:tourism_app/services/mock_payment_service.dart';
+import 'package:tourism_app/services/payment_service.dart';
 
 class PaymentsTab extends StatefulWidget {
   const PaymentsTab({Key? key}) : super(key: key);
@@ -97,21 +97,13 @@ class _PaymentsTabState extends State<PaymentsTab> {
           throw Exception('HTTP ${response.statusCode}');
         }
       } catch (e) {
-        print('Real payment history API failed, using mock service: $e');
-
-        // Use mock service as fallback
-        final mockResult = await MockPaymentService.getPaymentHistory(
-          userId: userId,
-          page: 1,
-          limit: 10,
-        );
-
-        if (mockResult['success']) {
-          responseData = mockResult;
-          usedMockService = true;
-        } else {
-          throw Exception('Both real and mock services failed');
-        }
+        print('Real payment history API failed: $e');
+        setState(() {
+          _error =
+              'Failed to load payment history. Please check your connection.';
+          _isLoading = false;
+        });
+        return;
       }
 
       if (responseData['success']) {
@@ -127,9 +119,8 @@ class _PaymentsTabState extends State<PaymentsTab> {
         if (usedMockService && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                  'Using offline demo mode - showing mock payment history'),
-              backgroundColor: Colors.orange,
+              content: Text('Payment history loaded successfully'),
+              backgroundColor: Colors.green,
               duration: Duration(seconds: 3),
             ),
           );
@@ -190,19 +181,9 @@ class _PaymentsTabState extends State<PaymentsTab> {
           throw Exception('HTTP ${response.statusCode}');
         }
       } catch (e) {
-        // Use mock service as fallback
-        final mockResult = await MockPaymentService.getPaymentHistory(
-          userId: userId,
-          page: _currentPage + 1,
-          limit: 10,
-        );
-
-        if (mockResult['success']) {
-          responseData = mockResult;
-        } else {
-          setState(() => _isLoading = false);
-          return;
-        }
+        print('Failed to load more payments: $e');
+        setState(() => _isLoading = false);
+        return;
       }
 
       if (responseData['success']) {

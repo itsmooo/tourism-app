@@ -53,7 +53,7 @@ const createPayment = async (req, res) => {
     // Ensure pricePerPerson has a minimum value to avoid validation errors
     const pricePerPerson = place.pricePerPerson || 5.0; // Default minimum price of $5 per person
     const totalAmount = pricePerPerson * visitorCount;
-    const actualPaidAmount = Math.min(totalAmount, 0.01); // Use actual amount or test amount (0.01) for WaafiPay testing
+    const actualPaidAmount = totalAmount; // Use actual amount for real payments
 
     // Validate that totalAmount is greater than 0
     if (totalAmount <= 0) {
@@ -108,47 +108,16 @@ const createPayment = async (req, res) => {
         }
       });
     } else {
-      // Check if it's a timeout or network error - use fallback for demo
-      const isNetworkError = paymentResult.error?.responseCode === 'NETWORK_ERROR' || 
-                            paymentResult.error?.responseMsg?.includes('timeout');
-      
-      if (isNetworkError) {
-        // Fallback: Allow booking to proceed in demo mode
-        payment.waafiResponse = {
-          referenceId: payment._id.toString(),
-          transactionId: `DEMO_${Date.now()}`,
-          state: 'APPROVED',
-          responseCode: 'DEMO_MODE',
-          responseMsg: 'Demo payment - WaafiPay service unavailable',
-          txAmount: actualPaidAmount
-        };
-        payment.bookingStatus = 'confirmed';
-        await payment.save();
+      // Payment failed - update status and return error
+      payment.bookingStatus = 'cancelled';
+      payment.waafiResponse = paymentResult.error;
+      await payment.save();
 
-        res.status(201).json({
-          success: true,
-          message: 'Payment processed successfully (Demo Mode)',
-          data: {
-            paymentId: payment._id,
-            totalAmount,
-            actualPaidAmount,
-            bookingStatus: payment.bookingStatus,
-            waafiResponse: payment.waafiResponse,
-            demoMode: true
-          }
-        });
-      } else {
-        // Update payment status to failed for other errors
-        payment.bookingStatus = 'cancelled';
-        payment.waafiResponse = paymentResult.error;
-        await payment.save();
-
-        res.status(400).json({
-          success: false,
-          message: 'Payment failed',
-          error: paymentResult.error
-        });
-      }
+      res.status(400).json({
+        success: false,
+        message: 'Payment failed',
+        error: paymentResult.error
+      });
     }
   } catch (error) {
     console.error('Payment creation error:', error);

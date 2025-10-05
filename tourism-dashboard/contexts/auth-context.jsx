@@ -113,6 +113,14 @@ export const AuthProvider = ({ children }) => {
     return user?.role === "admin";
   };
 
+  const isCoWorker = () => {
+    return user?.role === "co-worker";
+  };
+
+  const hasDashboardAccess = () => {
+    return user?.role === "admin" || user?.role === "co-worker";
+  };
+
   const isAuthenticated = () => {
     return !!token && !!user;
   };
@@ -124,6 +132,8 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     isAdmin,
+    isCoWorker,
+    hasDashboardAccess,
     isAuthenticated,
     verifyToken,
   };

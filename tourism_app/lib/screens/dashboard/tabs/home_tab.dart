@@ -44,7 +44,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
   final bool _useEnhancedRecommendations = true;
   double _scrollOffset = 0.0;
   late EnhancedRecommendationService _enhancedRecommendationService;
-  
+
   // Store reference to the provider listener for proper cleanup
   VoidCallback? _providerListener;
 
@@ -74,15 +74,17 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     try {
       final enhancedBehaviorProvider =
           Provider.of<EnhancedUserBehaviorProvider>(context, listen: false);
-      
+
       // Set up a listener to update UI when cached data is loaded
       _providerListener = () async {
         if (!mounted) return;
-        
+
         try {
-          final recommendations = await enhancedBehaviorProvider.getRecommendations();
-          final trendingPlaces = await enhancedBehaviorProvider.getTrendingPlaces();
-          
+          final recommendations =
+              await enhancedBehaviorProvider.getRecommendations();
+          final trendingPlaces =
+              await enhancedBehaviorProvider.getTrendingPlaces();
+
           if (mounted) {
             setState(() {
               _enhancedRecommendations = recommendations;
@@ -99,17 +101,19 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           }
         }
       };
-      
+
       // Add listener for immediate updates when cached data is available
       enhancedBehaviorProvider.addListener(_providerListener!);
-      
+
       // Initialize the provider (this will load cached data first, then fresh data)
       await enhancedBehaviorProvider.initialize();
 
       // Load current recommendations and trending
       if (mounted) {
-        final recommendations = await enhancedBehaviorProvider.getRecommendations();
-        final trendingPlaces = await enhancedBehaviorProvider.getTrendingPlaces();
+        final recommendations =
+            await enhancedBehaviorProvider.getRecommendations();
+        final trendingPlaces =
+            await enhancedBehaviorProvider.getTrendingPlaces();
 
         if (mounted) {
           setState(() {
@@ -159,7 +163,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     _scrollController.dispose();
     _searchDebounceTimer?.cancel();
     _heroAnimationController.dispose();
-    
+
     // Remove the provider listener if it exists
     if (_providerListener != null) {
       try {
@@ -171,12 +175,17 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         // Ignore errors during disposal
       }
     }
-    
+
     super.dispose();
   }
 
-  Future<void> _loadPlaces() async {
+  Future<void> _loadPlaces({bool forceRefresh = false}) async {
     if (!mounted) return;
+
+    // Check if we already have places and don't need to refresh
+    if (!forceRefresh && _places.isNotEmpty && !_isLoading) {
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -203,7 +212,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
 
   Future<void> _loadLastRecommendation() async {
     if (!mounted) return;
-    
+
     final prefs = await SharedPreferences.getInstance();
     final lastCategory = prefs.getString('last_recommended_category');
     if (lastCategory != null && mounted) {
@@ -246,7 +255,9 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
         final topCategory =
             topRecommendation['category']?.toString().toLowerCase();
 
-        if (topCategory != null && topCategory != _recommendedCategory && mounted) {
+        if (topCategory != null &&
+            topCategory != _recommendedCategory &&
+            mounted) {
           setState(() {
             _recommendedCategory = topCategory;
             _recommendedPlaces = recommendations.take(5).toList();
@@ -276,7 +287,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
 
   Future<void> _fallbackToBasicRecommendation() async {
     if (!mounted) return;
-    
+
     try {
       final enhancedBehavior =
           Provider.of<EnhancedUserBehaviorProvider>(context, listen: false);
@@ -299,7 +310,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
       }
 
       final topCategory = categoryInteractions.entries
-           .reduce((a, b) => a.value > b.value ? a : b).key;
+          .reduce((a, b) => a.value > b.value ? a : b)
+          .key;
 
       if (topCategory != _recommendedCategory && mounted) {
         final places = await PlacesService.getPlacesByCategory(topCategory);
@@ -606,8 +618,6 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     }
   }
 
-
-
   String _getRecommendationSubtitle() {
     try {
       final enhancedBehaviorProvider =
@@ -764,7 +774,7 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
     try {
       final enhancedBehavior =
           Provider.of<EnhancedUserBehaviorProvider>(context, listen: false);
-      
+
       return enhancedBehavior.getRecommendationExplanation();
     } catch (e) {
       return 'Personalized recommendations for you';
@@ -1433,7 +1443,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           // Record category interaction using enhanced provider
           try {
             if (_selectedCategory != 'all') {
-              await Provider.of<EnhancedUserBehaviorProvider>(context, listen: false)
+              await Provider.of<EnhancedUserBehaviorProvider>(context,
+                      listen: false)
                   .recordCategoryInteraction(_selectedCategory);
             }
           } catch (e) {
@@ -1577,26 +1588,32 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           _buildEnhancedSectionHeader(
             'Recommended for You',
             Icons.star,
-            onSeeAllPressed: _isLoadingEnhancedContent || _enhancedRecommendations.isEmpty ? null : () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SeeAllRecommendedScreen(
-                    recommendedPlaces: _enhancedRecommendations,
-                    recommendedCategory: _getMostPreferredCategory(),
-                    isEnhanced: true,
-                  ),
-                ),
-              );
-            },
-            subtitle: _isLoadingEnhancedContent ? 'Loading personalized recommendations...' : _getRecommendationSubtitle(),
+            onSeeAllPressed:
+                _isLoadingEnhancedContent || _enhancedRecommendations.isEmpty
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SeeAllRecommendedScreen(
+                              recommendedPlaces: _enhancedRecommendations,
+                              recommendedCategory: _getMostPreferredCategory(),
+                              isEnhanced: true,
+                            ),
+                          ),
+                        );
+                      },
+            subtitle: _isLoadingEnhancedContent
+                ? 'Loading personalized recommendations...'
+                : _getRecommendationSubtitle(),
           ),
           SizedBox(
             height: 350,
             child: _isLoadingEnhancedContent
                 ? _buildUnifiedLoadingIndicator()
                 : _enhancedRecommendations.isEmpty
-                    ? _buildEmptyState('No recommendations available', Icons.star_outline)
+                    ? _buildEmptyState(
+                        'No recommendations available', Icons.star_outline)
                     : ListView.builder(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1609,7 +1626,8 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
                             child: _buildEnhancedPlaceCard(
                               place,
                               showRecommendationBadge: true,
-                              recommendationReason: place['recommendationReason'],
+                              recommendationReason:
+                                  place['recommendationReason'],
                             ),
                           );
                         },
@@ -1628,25 +1646,31 @@ class _HomeTabState extends State<HomeTab> with TickerProviderStateMixin {
           _buildEnhancedSectionHeader(
             'Trending Now',
             Icons.trending_up,
-            onSeeAllPressed: _isLoadingEnhancedContent || _enhancedTrendingPlaces.isEmpty ? null : () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SeeAllTrendingScreen(
-                    trendingPlaces: _enhancedTrendingPlaces,
-                    isEnhanced: true,
-                  ),
-                ),
-              );
-            },
-            subtitle: _isLoadingEnhancedContent ? 'Loading trending destinations...' : 'Popular destinations right now',
+            onSeeAllPressed:
+                _isLoadingEnhancedContent || _enhancedTrendingPlaces.isEmpty
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SeeAllTrendingScreen(
+                              trendingPlaces: _enhancedTrendingPlaces,
+                              isEnhanced: true,
+                            ),
+                          ),
+                        );
+                      },
+            subtitle: _isLoadingEnhancedContent
+                ? 'Loading trending destinations...'
+                : 'Popular destinations right now',
           ),
           SizedBox(
             height: 350,
             child: _isLoadingEnhancedContent
                 ? _buildUnifiedLoadingIndicator()
                 : _enhancedTrendingPlaces.isEmpty
-                    ? _buildEmptyState('No trending places available', Icons.trending_up_outlined)
+                    ? _buildEmptyState('No trending places available',
+                        Icons.trending_up_outlined)
                     : ListView.builder(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 20),
