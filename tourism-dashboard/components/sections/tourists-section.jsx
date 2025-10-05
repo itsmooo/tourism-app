@@ -72,14 +72,16 @@ export function TouristsSection() {
     username: '',
     email: '',
     full_name: '',
-    role: 'tourist'
+    role: 'tourist',
+    isActive: true
   });
   const [createForm, setCreateForm] = useState({
     username: '',
     email: '',
     password: '',
     full_name: '',
-    role: 'tourist'
+    role: 'tourist',
+    isActive: true
   });
 
   // Fetch users from API
@@ -171,7 +173,8 @@ export function TouristsSection() {
       username: user.username || '',
       email: user.email || '',
       full_name: user.full_name || '',
-      role: user.role || 'tourist'
+      role: user.role || 'tourist',
+      isActive: user.isActive !== undefined ? user.isActive : true
     });
     setIsEditModalOpen(true);
   };
@@ -439,12 +442,12 @@ export function TouristsSection() {
                       <Badge
                         variant="default"
                         className={
-                          user.role === 'admin'
+                          user.isActive === true
                             ? "bg-green-100 text-green-800 hover:bg-green-100"
-                            : "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                            : "bg-red-100 text-red-800 hover:bg-red-100"
                         }
                       >
-                        {user.role === 'admin' ? 'active' : 'active'}
+                        {user.isActive === true ? 'Active' : 'Inactive'}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -727,6 +730,24 @@ export function TouristsSection() {
                 <SelectContent>
                   <SelectItem value="tourist">Tourist</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="co-worker">Co-worker</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="isActive" className="text-right">
+                Status
+              </Label>
+              <Select
+                value={editForm.isActive ? 'active' : 'inactive'}
+                onValueChange={(value) => handleFormChange('isActive', value === 'active')}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>

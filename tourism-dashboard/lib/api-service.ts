@@ -268,10 +268,11 @@ class ApiService {
   }
 
   async updateUser(id: string, userData: Partial<User>): Promise<User> {
-    return this.request<User>(`/users/${id}`, {
+    const response = await this.request<{ success: boolean; message: string; data: User }>(`/auth/${id}`, {
       method: 'PUT',
       body: JSON.stringify(userData),
     });
+    return response.data || response;
   }
 
   async deleteUser(id: string): Promise<{ message: string }> {

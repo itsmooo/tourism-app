@@ -916,7 +916,20 @@ class _BookingDialogState extends State<BookingDialog> {
             // Payment failed or cancelled
             final errorMessage =
                 result['message'] ?? 'Payment was cancelled or failed';
-            _showErrorSnackBar(errorMessage);
+            final errorType = result['data']?['paymentError']?['errorType'];
+
+            // Show appropriate message based on error type
+            String displayMessage = errorMessage;
+            if (errorType == 'USER_CANCELLED') {
+              displayMessage =
+                  'Payment was cancelled. You can try again if needed.';
+            }
+
+            _showErrorSnackBar(displayMessage);
+            setState(() => _isLoading = false);
+
+            // Don't show the booking modal again for cancellations
+            // The user can manually try booking again if they want
           }
         }
       } else {

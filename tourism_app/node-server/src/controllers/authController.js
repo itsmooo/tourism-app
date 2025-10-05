@@ -126,6 +126,64 @@ exports.updateUserActivity = async (req, res) => {
     }
 };
 
+// Admin endpoint to update any user
+exports.updateUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { username, email, full_name, role, isActive } = req.body;
+        
+        // Check if user exists
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        // Check if username or email already exists (excluding current user)
+        if (username || email) {
+            const existingUser = await User.findOne({
+                $and: [
+                    { _id: { $ne: userId } },
+                    { $or: [
+                        ...(username ? [{ username }] : []),
+                        ...(email ? [{ email }] : [])
+                    ]}
+                ]
+            });
+            
+            if (existingUser) {
+                if (existingUser.email === email) {
+                    return res.status(400).json({ message: 'Email already exists' });
+                }
+                if (existingUser.username === username) {
+                    return res.status(400).json({ message: 'Username already exists' });
+                }
+            }
+        }
+        
+        // Update user fields
+        const updateData = {};
+        if (username !== undefined) updateData.username = username;
+        if (email !== undefined) updateData.email = email;
+        if (full_name !== undefined) updateData.full_name = full_name;
+        if (role !== undefined) updateData.role = role;
+        if (isActive !== undefined) updateData.isActive = isActive;
+        
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            updateData,
+            { new: true, runValidators: true }
+        ).select('-password');
+        
+        res.json({
+            success: true,
+            message: 'User updated successfully',
+            data: updatedUser
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // Refresh token endpoint
 exports.refreshToken = async (req, res) => {
     try {

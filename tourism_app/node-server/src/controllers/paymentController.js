@@ -180,11 +180,28 @@ const processWaafiPayment = async (paymentData) => {
         }
       };
     } else {
+      // Check if it's a user cancellation
+      const responseCode = response.data?.responseCode;
+      const responseMsg = response.data?.responseMsg || '';
+      
+      let errorMessage = 'Payment failed';
+      let errorType = 'PAYMENT_FAILED';
+      
+      if (responseCode === '4001' || responseCode === '4002' || 
+          responseMsg.toLowerCase().includes('cancel') ||
+          responseMsg.toLowerCase().includes('decline') ||
+          responseMsg.toLowerCase().includes('abort')) {
+        errorMessage = 'Payment was cancelled by user';
+        errorType = 'USER_CANCELLED';
+      }
+      
       return {
         success: false,
         error: {
-          responseCode: response.data?.responseCode,
-          responseMsg: response.data?.responseMsg || 'Payment failed'
+          responseCode: responseCode,
+          responseMsg: errorMessage,
+          errorType: errorType,
+          originalMessage: responseMsg
         }
       };
     }
