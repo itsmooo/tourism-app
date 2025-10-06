@@ -540,11 +540,10 @@ class _PaymentsTabState extends State<PaymentsTab> {
                           ),
                         ),
                         Text(
-                          '\$${(payment['actualPaidAmount'] ?? 0).toStringAsFixed(2)} (Test)',
+                          '\$${(payment['actualPaidAmount'] ?? 0).toStringAsFixed(2)}',
                           style: GoogleFonts.poppins(
                             fontSize: 12,
-                            color: Colors.orange[700],
-                            fontStyle: FontStyle.italic,
+                            color: Colors.grey[700],
                           ),
                         ),
                       ],
@@ -673,7 +672,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
                   '\$${(payment['totalAmount'] ?? 0).toStringAsFixed(2)}'),
               _buildDetailRow(
                   Provider.of<LanguageProvider>(context).getText('paid_amount'),
-                  '\$${(payment['actualPaidAmount'] ?? 0).toStringAsFixed(2)} (Test)'),
+                  '\$${(payment['actualPaidAmount'] ?? 0).toStringAsFixed(2)}'),
               _buildDetailRow(
                   Provider.of<LanguageProvider>(context).getText('status'),
                   payment['bookingStatus']?.toUpperCase() ?? 'PENDING'),

@@ -133,21 +133,21 @@ class ApiService {
     }
   }
 
-  // Places API - using localhost for all operations to avoid Vercel file system issues
+  // Places API - use production (Vercel) API
   async getAllPlaces(): Promise<Place[]> {
-    return this.requestWithUrl<Place[]>(LOCALHOST_API_URL, '/places');
+    return this.requestWithUrl<Place[]>(API_BASE_URL, '/places');
   }
 
   async getPlaceById(id: string): Promise<Place> {
-    return this.requestWithUrl<Place>(LOCALHOST_API_URL, `/places/${id}`);
+    return this.requestWithUrl<Place>(API_BASE_URL, `/places/${id}`);
   }
 
   async getPlacesByCategory(category: string): Promise<Place[]> {
-    return this.requestWithUrl<Place[]>(LOCALHOST_API_URL, `/places/category/${category}`);
+    return this.requestWithUrl<Place[]>(API_BASE_URL, `/places/category/${category}`);
   }
 
   async createPlace(placeData: FormData): Promise<Place> {
-    const url = `${LOCALHOST_API_URL}/places`;
+    const url = `${API_BASE_URL}/places`;
     
     // Get auth token from localStorage
     const token = localStorage.getItem('authToken');
@@ -181,7 +181,7 @@ class ApiService {
   }
 
   async updatePlace(id: string, placeData: FormData): Promise<Place> {
-    const url = `${LOCALHOST_API_URL}/places/${id}`;
+    const url = `${API_BASE_URL}/places/${id}`;
     
     // Get auth token from localStorage
     const token = localStorage.getItem('authToken');
@@ -212,7 +212,7 @@ class ApiService {
   }
 
   async deletePlace(id: string): Promise<void> {
-    return this.requestWithUrl<void>(LOCALHOST_API_URL, `/places/${id}`, {
+    return this.requestWithUrl<void>(API_BASE_URL, `/places/${id}`, {
       method: 'DELETE',
     });
   }

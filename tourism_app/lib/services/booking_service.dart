@@ -47,11 +47,13 @@ class BookingService {
 
       print('📤 Request body: $requestBody');
 
-      final response = await http.post(
-        Uri.parse(baseUrl),
-        headers: headers,
-        body: json.encode(requestBody),
-      );
+      final response = await http
+          .post(
+            Uri.parse(baseUrl),
+            headers: headers,
+            body: json.encode(requestBody),
+          )
+          .timeout(const Duration(seconds: 30));
 
       print('📥 Response status: ${response.statusCode}');
       print('📥 Response body: ${response.body}');
@@ -104,10 +106,12 @@ class BookingService {
       final url = '$baseUrl/user/$userId';
       print('📤 GET request to: $url');
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: headers,
-      );
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 30));
 
       print('📥 Get bookings response status: ${response.statusCode}');
       print('📥 Get bookings response body: ${response.body}');
@@ -153,10 +157,12 @@ class BookingService {
         headers['Authorization'] = 'Bearer $authToken';
       }
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/$bookingId'),
-        headers: headers,
-      );
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/$bookingId'),
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 30));
 
       final responseData = json.decode(response.body);
 
@@ -196,13 +202,15 @@ class BookingService {
         headers['Authorization'] = 'Bearer $authToken';
       }
 
-      final response = await http.put(
-        Uri.parse('$baseUrl/$bookingId/status'),
-        headers: headers,
-        body: json.encode({
-          'status': status,
-        }),
-      );
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl/$bookingId/status'),
+            headers: headers,
+            body: json.encode({
+              'status': status,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
       final responseData = json.decode(response.body);
 
@@ -242,10 +250,12 @@ class BookingService {
         headers['Authorization'] = 'Bearer $authToken';
       }
 
-      final response = await http.delete(
-        Uri.parse('$baseUrl/$bookingId'),
-        headers: headers,
-      );
+      final response = await http
+          .delete(
+            Uri.parse('$baseUrl/$bookingId'),
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 30));
 
       final responseData = json.decode(response.body);
 
@@ -284,13 +294,15 @@ class BookingService {
         headers['Authorization'] = 'Bearer $authToken';
       }
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/payment/initiate'),
-        headers: headers,
-        body: json.encode({
-          'bookingId': bookingId,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/payment/initiate'),
+            headers: headers,
+            body: json.encode({
+              'bookingId': bookingId,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
       final responseData = json.decode(response.body);
 

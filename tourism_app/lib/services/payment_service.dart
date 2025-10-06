@@ -18,23 +18,25 @@ class PaymentService {
     double? pricePerPerson,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse(baseUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'userId': userId,
-          'userFullName': userFullName,
-          'userAccountNo': userAccountNo,
-          'placeId': placeId,
-          'bookingDate': bookingDate,
-          'timeSlot': timeSlot,
-          'visitorCount': visitorCount,
-          'placeName': placeName,
-          'pricePerPerson': pricePerPerson,
-        }),
-      );
+      final response = await http
+          .post(
+            Uri.parse(baseUrl),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: json.encode({
+              'userId': userId,
+              'userFullName': userFullName,
+              'userAccountNo': userAccountNo,
+              'placeId': placeId,
+              'bookingDate': bookingDate,
+              'timeSlot': timeSlot,
+              'visitorCount': visitorCount,
+              'placeName': placeName,
+              'pricePerPerson': pricePerPerson,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
       // Check if response is HTML (server error page)
       final contentType = response.headers['content-type'] ?? '';
@@ -112,7 +114,7 @@ class PaymentService {
         headers: {
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 30));
 
       // Check if response is HTML (server error page)
       final contentType = response.headers['content-type'] ?? '';
@@ -169,7 +171,7 @@ class PaymentService {
         headers: {
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 30));
 
       // Check if response is HTML (server error page)
       final contentType = response.headers['content-type'] ?? '';
@@ -225,7 +227,7 @@ class PaymentService {
         headers: {
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(const Duration(seconds: 30));
 
       // Check if response is HTML (server error page)
       final contentType = response.headers['content-type'] ?? '';
