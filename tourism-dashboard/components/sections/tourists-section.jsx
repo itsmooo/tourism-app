@@ -586,6 +586,7 @@ export function TouristsSection() {
                 <SelectContent>
                   <SelectItem value="tourist">Tourist</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="co-worker">Co-Worker</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -750,6 +751,7 @@ export function TouristsSection() {
                 <SelectContent>
                   <SelectItem value="tourist">Tourist</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="co-worker">Co-Worker</SelectItem>
                 </SelectContent>
               </Select>
             </div>

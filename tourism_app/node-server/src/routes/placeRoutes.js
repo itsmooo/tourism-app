@@ -26,7 +26,7 @@ router.post('/test-upload', upload.single('image'), (req, res) => {
     }
 });
 
-// Admin routes with image upload
+// Admin routes with image upload (only admins can create/modify/delete)
 router.post('/', protect, authorizeRoles('admin'), upload.array('images', 5), addPlace); // Allow up to 5 images
 router.put('/:id', protect, authorizeRoles('admin'), upload.array('images', 5), updatePlace);
 router.delete('/:id', protect, authorizeRoles('admin'), deletePlace);

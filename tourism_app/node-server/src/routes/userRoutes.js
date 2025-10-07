@@ -3,9 +3,9 @@ const { getAllUsers, getUserById, updateUser, deleteUser } = require('../control
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const router = express.Router();
 
-// Protected routes - only admins can access
-router.get('/', protect, authorizeRoles('admin'), getAllUsers);
-router.get('/:id', protect, authorizeRoles('admin'), getUserById);
+// Protected routes - admins and co-workers can view, only admins can modify
+router.get('/', protect, authorizeRoles('admin', 'co-worker'), getAllUsers);
+router.get('/:id', protect, authorizeRoles('admin', 'co-worker'), getUserById);
 router.put('/:id', protect, authorizeRoles('admin'), updateUser);
 router.delete('/:id', protect, authorizeRoles('admin'), deleteUser);
 

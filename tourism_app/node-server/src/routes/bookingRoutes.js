@@ -9,9 +9,9 @@ router.get('/my-bookings', protect, authorizeRoles('tourist', 'admin'), getUserB
 router.get('/user/:userId', protect, authorizeRoles('tourist', 'admin'), getUserBookings);
 router.post('/payment/initiate', protect, authorizeRoles('tourist', 'admin'), initiateHormuudPayment); // Tourist initiates payment
 
-// Admin routes
-router.get('/', protect, authorizeRoles('admin'), getAllBookings);
-router.get('/:id', protect, authorizeRoles('tourist', 'admin'), getBookingDetails);
+// Admin and co-worker routes (co-workers can view, only admins can modify)
+router.get('/', protect, authorizeRoles('admin', 'co-worker'), getAllBookings);
+router.get('/:id', protect, authorizeRoles('tourist', 'admin', 'co-worker'), getBookingDetails);
 router.put('/:id/status', protect, authorizeRoles('admin'), updateBookingStatus);
 router.delete('/:id', protect, authorizeRoles('tourist', 'admin'), cancelBooking);
 
