@@ -1,9 +1,16 @@
 const User = require('../models/User');
 
-// Get all users (admin only)
+// Get all users (admin and co-worker)
 exports.getAllUsers = async (req, res) => {
     try {
-        const users = await User.find({}).select('-password').sort({ createdAt: -1 });
+        let query = {};
+        
+        // Co-workers can only see tourists, admins can see everyone
+        if (req.user.role === 'co-worker') {
+            query = { role: 'tourist' };
+        }
+        
+        const users = await User.find(query).select('-password').sort({ createdAt: -1 });
         res.json(users);
     } catch (error) {
         console.error('Error fetching users:', error);
@@ -11,13 +18,19 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
-// Get user by ID (admin only)
+// Get user by ID (admin and co-worker)
 exports.getUserById = async (req, res) => {
     try {
         const user = await User.findById(req.params.id).select('-password');
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
+        
+        // Co-workers can only view tourist users
+        if (req.user.role === 'co-worker' && user.role !== 'tourist') {
+            return res.status(403).json({ message: 'Access denied. You can only view tourist users.' });
+        }
+        
         res.json(user);
     } catch (error) {
         console.error('Error fetching user:', error);

@@ -147,7 +147,7 @@ class ApiService {
   }
 
   async createPlace(placeData: FormData): Promise<Place> {
-    const url = `${API_BASE_URL}/places`;
+    const url = `${LOCALHOST_API_URL}/places`;
     
     // Get auth token from localStorage
     const token = localStorage.getItem('authToken');
