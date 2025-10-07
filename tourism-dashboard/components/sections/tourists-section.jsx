@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAuth } from "@/contexts/auth-context"
 
 // Sample data for stats (will be calculated from real users)
 const getStatsFromUsers = (users) => {
@@ -57,6 +58,7 @@ const getStatsFromUsers = (users) => {
 // This will be replaced with dynamic stats
 
 export function TouristsSection() {
+  const { isAdmin } = useAuth();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -348,10 +350,12 @@ export function TouristsSection() {
             <Loader2 className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateUser}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add New User
-          </Button>
+          {isAdmin() && (
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateUser}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add New User
+            </Button>
+          )}
         </div>
       </div>
 
@@ -487,17 +491,21 @@ export function TouristsSection() {
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditUser(user)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit User
-                          </DropdownMenuItem>
-                                                  <DropdownMenuItem 
-                          className="text-red-600"
-                          onClick={() => handleDeleteUser(user._id, user.username || 'Unknown User')}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete User
-                        </DropdownMenuItem>
+                          {isAdmin() && (
+                            <>
+                              <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit User
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => handleDeleteUser(user._id, user.username || 'Unknown User')}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete User
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -677,15 +685,17 @@ export function TouristsSection() {
             <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
               Close
             </Button>
-            <Button 
-              onClick={() => {
-                setIsViewModalOpen(false);
-                handleEditUser(viewingUser);
-              }}
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit User
-            </Button>
+            {isAdmin() && (
+              <Button 
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  handleEditUser(viewingUser);
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit User
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
